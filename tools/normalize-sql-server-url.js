@@ -47,5 +47,11 @@ const url =
   `sqlserver://${user}:${encodedPassword}` +
   `@${host}:${port}/${database}` +
   `?encrypt=true`;
+const safeDebug = url
+  .replace(/:\/\/([^:]+):[^@]+@/, "://$1:***@")
+  .replace(/\?.*$/, "?…");
+
+console.log("DEBUG_URL:", safeDebug);
+console.log("DEBUG_CHARS:", [...safeDebug].map(c => c.charCodeAt(0)));
 
 console.log(url);
