@@ -1,0 +1,143 @@
+datasource db {
+  provider = "sqlserver"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model CareHome {
+  id        String   @id @default(uuid())
+  name      String
+  region    String  @default("UK South")
+  isActive  Boolean  @default(true)
+  residents Resident[]
+  visits    Visit[]
+  invoices  Invoice[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Supplier {
+  id          String              @id @default(uuid())
+  name        String
+  serviceType String              @db.VarChar(32)
+  email       String?
+  phone       String?
+  defaultRate Decimal             @db.Decimal(10, 2)
+  isActive    Boolean             @default(true)
+  visits      Visit[]
+  consents    Consent[]
+  invoices    Invoice[]
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+}
+
+model Resident {
+  id         String   @id @default(uuid())
+  careHomeId String
+  careHome   CareHome @relation(fields: [careHomeId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  firstName  String
+  lastName   String
+  dob        DateTime?
+  isActive   Boolean  @default(true)
+  consents   Consent[]
+  visitItems VisitItem[]
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model Consent {
+  id                String        @id @default(uuid())
+  residentId        String
+  resident          Resident      @relation(fields: [residentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  supplierId        String
+  supplier          Supplier      @relation(fields: [supplierId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  serviceType       String        @db.VarChar(32)
+  consentGivenAt    DateTime
+  consentExpiresAt  DateTime?
+  notes             String?
+  createdBy         String
+  createdAt         DateTime      @default(now())
+  status            String        @default("Active")
+  visitItems        VisitItem[]
+}
+
+model Visit {
+  id         String   @id @default(uuid())
+  careHomeId String
+  careHome   CareHome @relation(fields: [careHomeId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  supplierId String
+  supplier   Supplier @relation(fields: [supplierId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  visitedAt  DateTime
+  status     String   @default("Draft") @db.VarChar(16)
+  createdBy  String
+  createdAt  DateTime @default(now())
+  lockedAt   DateTime?
+  notes      String?
+  items      VisitItem[]
+  invoice    Invoice? @relation(fields: [invoiceId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  invoiceId  String?
+}
+
+model VisitItem {
+  id            String   @id @default(uuid())
+  visitId       String
+  visit         Visit    @relation(fields: [visitId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  residentId    String
+  resident      Resident @relation(fields: [residentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  description   String
+  qty           Decimal  @db.Decimal(10, 2)
+  unitPrice     Decimal  @db.Decimal(10, 2)
+  vatRate       Decimal  @db.Decimal(5, 2)
+  lineTotal     Decimal  @db.Decimal(12, 2)
+  consentId     String?
+  consent       Consent? @relation(fields: [consentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  invoiceItem   InvoiceItem?
+}
+
+model Invoice {
+  id          String   @id @default(uuid())
+  supplierId  String
+  supplier    Supplier @relation(fields: [supplierId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  careHomeId  String
+  careHome    CareHome @relation(fields: [careHomeId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  invoiceNo   String   @unique
+  periodStart DateTime
+  periodEnd   DateTime
+  issuedAt    DateTime?
+  subtotal    Decimal  @db.Decimal(12, 2)
+  vatTotal    Decimal  @db.Decimal(12, 2)
+  total       Decimal  @db.Decimal(12, 2)
+  status      String   @default("Draft") @db.VarChar(16)
+  items       InvoiceItem[]
+  visits      Visit[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model InvoiceItem {
+  id          String   @id @default(uuid())
+  invoiceId   String
+  invoice     Invoice  @relation(fields: [invoiceId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  visitItemId String?  @unique
+  visitItem   VisitItem? @relation(fields: [visitItemId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  description String
+  qty         Decimal   @db.Decimal(10, 2)
+  unitPrice   Decimal   @db.Decimal(10, 2)
+  vatRate     Decimal   @db.Decimal(5, 2)
+  lineTotal   Decimal   @db.Decimal(12, 2)
+}
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  actorUpn    String
+  action      String
+  entityType  String
+  entityId    String
+  at          DateTime @default(now())
+  detailsJson String?
+}
+
