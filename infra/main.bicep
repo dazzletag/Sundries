@@ -179,6 +179,9 @@ resource apiApp 'Microsoft.Web/sites@2024-11-01' = {
 resource webApp 'Microsoft.Web/sites@2024-11-01' = {
   name: webAppName
   location: location
+  identity: {
+    type: 'SystemAssigned'
+  }
   kind: 'app,linux'
   properties: {
     serverFarmId: appPlan.id
@@ -226,6 +229,16 @@ resource keyVaultApiPolicy 'Microsoft.KeyVault/vaults/accessPolicies@2024-11-01'
       {
         tenantId: tenant().tenantId
         objectId: apiApp.identity.principalId
+        permissions: {
+          secrets: [
+            'get'
+            'list'
+          ]
+        }
+      }
+      {
+        tenantId: tenant().tenantId
+        objectId: webApp.identity.principalId
         permissions: {
           secrets: [
             'get'
