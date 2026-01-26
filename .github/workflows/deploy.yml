@@ -88,7 +88,7 @@ jobs:
           DATABASE_URL=$(az keyvault secret show --vault-name ${{ steps.kv.outputs.keyvault }} --name DatabaseConnectionString --query value -o tsv)
           export DATABASE_URL
           cd api
-          npx prisma migrate deploy --schema prisma/schema.prisma --url "$DATABASE_URL"
+          npx prisma migrate deploy
 
       - name: Deploy API
         run: |
