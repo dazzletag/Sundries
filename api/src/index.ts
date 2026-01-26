@@ -1,5 +1,5 @@
 ﻿import Fastify from "fastify";
-import cors from "fastify-cors";
+import cors from "@fastify/cors";
 import dotenv from "dotenv";
 import prismaPlugin from "./plugins/prisma";
 import authPlugin from "./plugins/auth";
