@@ -58,6 +58,7 @@ jobs:
       - name: Deploy infrastructure
         shell: bash
         env:
+          AZURE_CLIENT_OBJECT_ID: ${{ secrets.AZURE_CLIENT_OBJECT_ID }}
           DEPLOYMENT_PRINCIPAL_OBJECT_ID: ${{ steps.login.outputs.principalId }}
         run: |
           set -euo pipefail
@@ -68,8 +69,8 @@ jobs:
             --parameters sqlAdminPassword="$SQL_ADMIN_PASSWORD" \
             aadTenantId="$AAD_TENANT_ID" \
             webClientId="$WEB_CLIENT_ID" \
-          apiAudience="${API_AUDIENCE:-api://sundries-api}" \
-          deploymentPrincipalObjectId="$AZURE_CLIENT_OBJECT_ID" \
+            apiAudience="${API_AUDIENCE:-api://sundries-api}" \
+            deploymentPrincipalObjectId="${AZURE_CLIENT_OBJECT_ID:-$DEPLOYMENT_PRINCIPAL_OBJECT_ID}" \
             --query properties.outputs -o json)
           echo "$DEPLOYMENT_OUTPUT" > /tmp/deployment-outputs.json
 
