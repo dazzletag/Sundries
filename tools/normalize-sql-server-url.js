@@ -1,4 +1,5 @@
-const connectionString = process.argv[2] ?? process.env.DATABASE_CONNECTION_STRING;
+const connectionString =
+  process.argv[2] ?? process.env.DATABASE_CONNECTION_STRING;
 
 if (!connectionString) {
   console.error("Database connection string is required.");
@@ -8,15 +9,14 @@ if (!connectionString) {
 const parseKeyValuePairs = (input) =>
   input
     .split(";")
-    .map((entry) => entry.trim())
+    .map((e) => e.trim())
     .filter(Boolean)
     .map((entry) => {
       const [key, ...rest] = entry.split("=");
       return [key.trim().toLowerCase(), rest.join("=").trim()];
     });
 
-const entries = parseKeyValuePairs(connectionString);
-const map = Object.fromEntries(entries);
+const map = Object.fromEntries(parseKeyValuePairs(connectionString));
 
 const server = map.server ?? map["data source"] ?? map.address;
 const user = map["user id"] ?? map.uid;
@@ -24,47 +24,28 @@ const password = map.password ?? map.pwd;
 const database = map["initial catalog"] ?? map.database;
 
 if (!server || !user || !password || !database) {
-  console.error("Database connection string must include server, user ID, password, and database.");
+  console.error(
+    "Connection string must include server, user ID, password, and database."
+  );
   process.exit(1);
 }
 
 let host = server.replace(/^tcp:/i, "").trim();
 let port = "1433";
+
 if (host.includes(",")) {
-  const [maybeHost, maybePort] = host.split(",");
-  host = maybeHost.trim();
-  port = maybePort.trim() || port;
-} else if (map.port) {
-  port = map.port.trim() || port;
+  const [h, p] = host.split(",");
+  host = h.trim();
+  port = p?.trim() || port;
 }
 
-const normalizeBoolean = (value) => {
-  if (!value) {
-    return null;
-  }
-  const normalized = value.toLowerCase();
-  if (normalized === "true") {
-    return "true";
-  }
-  if (normalized === "false") {
-    return "false";
-  }
-  return value;
-};
+// Encode ONLY the password
+const encodedPassword = encodeURIComponent(password);
 
-const queryParams = [];
-const encryptValue = normalizeBoolean(map.encrypt);
-const trustValue = normalizeBoolean(map["trustservercertificate"] ?? map["trust server certificate"]);
-if (encryptValue) {
-  queryParams.push(`encrypt=${encryptValue}`);
-}
-if (trustValue) {
-  queryParams.push(`trustServerCertificate=${trustValue}`);
-}
-
-const queryString = queryParams.length ? `?${queryParams.join("&")}` : "";
-const url = `sqlserver://${encodeURIComponent(user)}:${encodeURIComponent(
-  password
-)}@${host}:${port}/${encodeURIComponent(database)}${queryString}`;
+// Minimal, Prisma-safe URL
+const url =
+  `sqlserver://${user}:${encodedPassword}` +
+  `@${host}:${port}/${database}` +
+  `?encrypt=true`;
 
 console.log(url);
