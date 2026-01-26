@@ -14,6 +14,7 @@ jobs:
       AAD_TENANT_ID: ${{ secrets.AAD_TENANT_ID }}
       WEB_CLIENT_ID: ${{ secrets.WEB_CLIENT_ID }}
       API_AUDIENCE: ${{ secrets.API_AUDIENCE }}
+      AZURE_CLIENT_OBJECT_ID: ${{ secrets.AZURE_CLIENT_OBJECT_ID }}
     steps:
       - uses: actions/checkout@v4
 
