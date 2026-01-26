@@ -169,7 +169,7 @@ resource apiApp 'Microsoft.Web/sites@2024-11-01' = {
         }
         {
           name: 'LOG_LEVEL'
-          value: 'Information'
+          value: 'info'
         }
       ]
     }
