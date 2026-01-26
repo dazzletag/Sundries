@@ -64,8 +64,11 @@ if (trustServerCertificate) {
 }
 
 const queryString = queryParams.length ? `?${queryParams.join("&")}` : "";
-const url = `sqlserver://${encodeURIComponent(user)}:${encodeURIComponent(password)}@${host}:${port}/${encodeURIComponent(
-  database
-)}${queryString}`;
+const url =
+  `sqlserver://${host}:1433` +
+  `;database=${database}` +
+  `;user=${user}` +
+  `;password=${encodeURIComponent(password)}` +
+  `;encrypt=true`;
 
 process.stdout.write(url);
