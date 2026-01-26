@@ -1,4 +1,4 @@
-﻿import fp from "fastify-plugin";
+import fp from "fastify-plugin";
 import { PrismaClient } from "@prisma/client";
 
 export default fp(async function prismaPlugin(fastify) {
@@ -12,3 +12,4 @@ export default fp(async function prismaPlugin(fastify) {
     await prisma.$disconnect();
   });
 });
+

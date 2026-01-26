@@ -39,6 +39,7 @@ jobs:
         run: |
           cd api
           npm ci
+          npm run prisma:generate
           npm run build
           mkdir -p ../artifacts/api
           cp package*.json prisma prisma.config.ts .env.example dist ../artifacts/api/
@@ -102,5 +103,6 @@ jobs:
       - name: Smoke test web
         run: |
           curl --fail https://sundries-web-prod.azurewebsites.net
+
 
 

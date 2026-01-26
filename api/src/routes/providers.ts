@@ -1,5 +1,6 @@
-﻿import { FastifyInstance } from "fastify";
+import { FastifyInstance } from "fastify";
 import { z } from "zod";
+import type { ProviderVisit } from "../types/prisma";
 
 const querySchema = z.object({ visitId: z.string().uuid().optional() });
 
@@ -8,7 +9,7 @@ export default async function providerRoutes(fastify: FastifyInstance) {
     const { supplierId } = request.params as { supplierId: string };
     const { visitId } = querySchema.parse(request.query);
 
-    const visits = await fastify.prisma.visit.findMany({
+    const visits = (await fastify.prisma.visit.findMany({
       where: {
         supplierId,
         ...(visitId ? { id: visitId } : {})
@@ -22,7 +23,7 @@ export default async function providerRoutes(fastify: FastifyInstance) {
         }
       },
       orderBy: { visitedAt: "desc" }
-    });
+    })) as ProviderVisit[];
 
     return {
       supplierId,
@@ -43,3 +44,4 @@ export default async function providerRoutes(fastify: FastifyInstance) {
     };
   });
 }
+

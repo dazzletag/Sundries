@@ -11,6 +11,7 @@
     "migrate:dev": "prisma migrate dev",
     "migrate:deploy": "prisma migrate deploy"
   },
+  "postinstall": "prisma generate",
   "keywords": [],
   "author": "",
   "license": "MIT",

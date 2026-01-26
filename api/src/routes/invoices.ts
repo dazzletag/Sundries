@@ -1,7 +1,9 @@
-﻿import { FastifyInstance } from "fastify";
+import { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { computeTotals, generateInvoiceNumber } from "../services/invoice";
 import { createInvoicePdf } from "../lib/pdf";
+import type { VisitItemWithInvoice, VisitWithItems } from "../types/prisma";
+import type { Invoice, InvoiceItem } from "@prisma/client";
 
 const invoiceQuerySchema = z.object({
   supplierId: z.string().uuid().optional(),
@@ -24,17 +26,17 @@ export default async function invoiceRoutes(fastify: FastifyInstance) {
     const periodStart = new Date(payload.from);
     const periodEnd = new Date(payload.to);
 
-    const visits = await fastify.prisma.visit.findMany({
+    const visits = (await fastify.prisma.visit.findMany({
       where: {
         supplierId: payload.supplierId,
         careHomeId: payload.careHomeId,
         visitedAt: { gte: periodStart, lte: periodEnd },
         status: "Confirmed"
       },
-      include: { items: { include: { invoiceItem: true } } }
-    });
+      include: { items: { include: { invoiceItem: true } }, supplier: true, careHome: true }
+    })) as VisitWithItems[];
 
-    const eligibleItems = visits.flatMap((v) => v.items).filter((item) => !item.invoiceItem);
+    const eligibleItems = visits.flatMap((visit) => visit.items).filter((item) => !item.invoiceItem);
     if (!eligibleItems.length) {
       throw fastify.httpErrors.badRequest("No visit items available for invoicing");
     }
@@ -44,7 +46,7 @@ export default async function invoiceRoutes(fastify: FastifyInstance) {
       eligibleItems.map((item) => ({ qty: Number(item.qty), unitPrice: Number(item.unitPrice), vatRate: Number(item.vatRate) }))
     );
 
-    const invoice = await fastify.prisma.$transaction(async (tx) => {
+    const invoice = (await fastify.prisma.$transaction(async (tx) => {
       const created = await tx.invoice.create({
         data: {
           supplierId: payload.supplierId,
@@ -61,7 +63,7 @@ export default async function invoiceRoutes(fastify: FastifyInstance) {
       });
 
       const invoiceItems = await Promise.all(
-        eligibleItems.map((item) =>
+        eligibleItems.map((item: VisitItemWithInvoice) =>
           tx.invoiceItem.create({
             data: {
               invoiceId: created.id,
@@ -82,7 +84,7 @@ export default async function invoiceRoutes(fastify: FastifyInstance) {
       });
 
       return { created, invoiceItems };
-    });
+    })) as { created: Invoice; invoiceItems: InvoiceItem[] };
 
     return { invoice: invoice.created, items: invoice.invoiceItems };
   });
@@ -130,3 +132,6 @@ export default async function invoiceRoutes(fastify: FastifyInstance) {
     return reply.send(buffer);
   });
 }
+
+
+

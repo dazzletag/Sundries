@@ -1,4 +1,4 @@
-﻿import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from "@prisma/client";
 
 const slugifySupplier = (name: string) => {
   const cleaned = name
@@ -42,3 +42,4 @@ export const computeTotals = (items: Array<{ qty: number; unitPrice: number; vat
     total: subtotal + vatTotal
   };
 };
+
