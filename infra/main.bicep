@@ -73,7 +73,7 @@ resource allowAzureServices 'Microsoft.Sql/servers/firewallRules@2022-08-01-prev
   }
 }
 
-resource keyVault 'Microsoft.KeyVault/vaults@2023-12-01' = {
+resource keyVault 'Microsoft.KeyVault/vaults@2024-11-01' = {
   name: keyVaultName
   location: location
   properties: {
@@ -101,7 +101,7 @@ resource keyVault 'Microsoft.KeyVault/vaults@2023-12-01' = {
   }
 }
 
-resource databaseSecret 'Microsoft.KeyVault/vaults/secrets@2023-12-01' = {
+resource databaseSecret 'Microsoft.KeyVault/vaults/secrets@2024-11-01' = {
   parent: keyVault
   name: 'DatabaseConnectionString'
   properties: {
@@ -109,7 +109,7 @@ resource databaseSecret 'Microsoft.KeyVault/vaults/secrets@2023-12-01' = {
   }
 }
 
-resource appPlan 'Microsoft.Web/serverfarms@2024-03-01' = {
+resource appPlan 'Microsoft.Web/serverfarms@2024-11-01' = {
   name: appPlanName
   location: location
   kind: 'linux'
@@ -126,7 +126,7 @@ resource appPlan 'Microsoft.Web/serverfarms@2024-03-01' = {
 var apiBaseUri = 'https://${apiAppName}.azurewebsites.net'
 var aiConnectionString = appInsights.listKeys('2020-02-02').connectionString
 
-resource apiApp 'Microsoft.Web/sites@2024-03-01' = {
+resource apiApp 'Microsoft.Web/sites@2024-11-01' = {
   name: apiAppName
   location: location
   identity: {
@@ -175,7 +175,7 @@ resource apiApp 'Microsoft.Web/sites@2024-03-01' = {
   }
 }
 
-resource webApp 'Microsoft.Web/sites@2024-03-01' = {
+resource webApp 'Microsoft.Web/sites@2024-11-01' = {
   name: webAppName
   location: location
   kind: 'app,linux'
@@ -217,7 +217,7 @@ resource webApp 'Microsoft.Web/sites@2024-03-01' = {
   }
 }
 
-resource keyVaultApiPolicy 'Microsoft.KeyVault/vaults/accessPolicies@2023-12-01' = {
+resource keyVaultApiPolicy 'Microsoft.KeyVault/vaults/accessPolicies@2024-11-01' = {
   parent: keyVault
   name: 'add-api-policy'
   properties: {
@@ -237,6 +237,7 @@ resource keyVaultApiPolicy 'Microsoft.KeyVault/vaults/accessPolicies@2023-12-01'
 }
 
 output keyVaultName string = keyVault.name
+
 
 
 
