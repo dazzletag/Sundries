@@ -219,7 +219,7 @@ resource webApp 'Microsoft.Web/sites@2024-11-01' = {
 
 resource keyVaultApiPolicy 'Microsoft.KeyVault/vaults/accessPolicies@2024-11-01' = {
   parent: keyVault
-  name: 'add-api-policy'
+  name: 'add'
   properties: {
     accessPolicies: [
       {
