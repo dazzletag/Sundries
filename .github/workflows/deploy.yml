@@ -78,6 +78,10 @@ jobs:
         run: |
           KEY_VAULT_NAME=$(jq -r '.keyVaultName.value' /tmp/deployment-outputs.json)
           echo "keyvault=$KEY_VAULT_NAME" >> $GITHUB_OUTPUT
+      - name: Debug prisma config presence
+        run: |
+          echo "Searching for prisma.config..."
+          find . -name "prisma.config.*" -print
 
       - name: Run Prisma migrations
         env:
@@ -93,6 +97,7 @@ jobs:
           export DATABASE_URL="$(node tools/normalize-sql-server-url.js "$DATABASE_CONNECTION_STRING")"
 
           cd api
+          
           npx prisma migrate deploy
 
 
