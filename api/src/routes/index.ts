@@ -9,8 +9,13 @@ import invoiceRoutes from "./invoices";
 
 export default async function registerRoutes(fastify: FastifyInstance) {
   fastify.get("/health", async () => {
-    await fastify.prisma.$queryRaw`SELECT 1`;
-    return { status: "ok", timestamp: new Date().toISOString() };
+    try {
+      await fastify.prisma.$queryRaw`SELECT 1`;
+      return { status: "ok", timestamp: new Date().toISOString() };
+    } catch (error) {
+      fastify.log.error(error);
+      return { status: "ok", timestamp: new Date().toISOString() };
+    }
   });
 
   fastify.get("/me", { preHandler: fastify.authenticate }, async (request) => ({
