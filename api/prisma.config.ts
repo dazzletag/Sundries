@@ -12,11 +12,9 @@ const connectionUrl =
 
 export default defineConfig({
   schema: "./prisma/schema.prisma",
-  datasources: {
-    db: {
-      provider: "sqlserver",
-      url: connectionUrl
-    }
+  datasource: {
+    provider: "sqlserver",
+    url: connectionUrl
   }
 });
 
