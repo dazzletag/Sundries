@@ -37,6 +37,8 @@ jobs:
           zip -r ../../artifacts/web.zip .
 
       - name: Build backend
+        env:
+          DATABASE_URL: "sqlserver://localhost;database=sundries;trustServerCertificate=true;"
         run: |
           cd api
           npm ci
@@ -79,6 +81,8 @@ jobs:
           echo "keyvault=$KEY_VAULT_NAME" >> $GITHUB_OUTPUT
 
       - name: Run Prisma migrations
+        env:
+          PRISMA_REQUIRE_DATABASE_URL: "true"
         run: |
           set -euo pipefail
           DATABASE_URL=$(az keyvault secret show --vault-name ${{ steps.kv.outputs.keyvault }} --name DatabaseConnectionString --query value -o tsv)
