@@ -32,6 +32,7 @@ resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2022-10-01' = {
 resource appInsights 'Microsoft.Insights/components@2020-02-02' = {
   name: aiName
   location: location
+  kind: 'web'
   properties: {
     Application_Type: 'web'
     Flow_Type: 'Bluefield'
@@ -124,7 +125,7 @@ resource appPlan 'Microsoft.Web/serverfarms@2024-11-01' = {
 }
 
 var apiBaseUri = 'https://${apiAppName}.azurewebsites.net'
-var aiConnectionString = appInsights.listKeys('2020-02-02').connectionString
+var aiConnectionString = appInsights.properties.ConnectionString
 
 resource apiApp 'Microsoft.Web/sites@2024-11-01' = {
   name: apiAppName
