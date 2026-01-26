@@ -56,6 +56,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          AZURE_CLIENT_ID=$(jq -r '.clientId' <<<'${{ secrets.AZURE_CREDENTIALS }}')
           DEPLOYMENT_PRINCIPAL_OBJECT_ID=$(az ad sp show --id $AZURE_CLIENT_ID --query objectId -o tsv)
           az group create -n $AZURE_RESOURCE_GROUP -l $AZURE_LOCATION
           DEPLOYMENT_OUTPUT=$(az deployment group create \
