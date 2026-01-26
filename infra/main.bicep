@@ -17,7 +17,7 @@ var appPlanName = 'sundries-plan-prod'
 var webAppName = 'sundries-web-prod'
 var apiAppName = 'sundries-api-prod'
 var sqlServerHostnameSuffix = environment().suffixes.sqlServerHostname
-var databaseConnectionString = format('sqlserver://{0}:{1}@{2}.{3}:1433/{4}?encrypt=True&trustServerCertificate=False', sqlAdminLogin, sqlAdminPassword, sqlServerName, sqlServerHostnameSuffix, databaseName)
+var databaseConnectionString = 'Server=tcp:${sqlServerName}.${sqlServerHostnameSuffix},1433;Initial Catalog=${databaseName};Persist Security Info=False;Encrypt=True;TrustServerCertificate=False;MultipleActiveResultSets=False;User ID=${sqlAdminLogin};Password=${sqlAdminPassword};'
 
 resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2022-10-01' = {
   name: lawName
