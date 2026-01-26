@@ -37,8 +37,6 @@ jobs:
           zip -r ../../artifacts/web.zip .
 
       - name: Build backend
-        env:
-          DATABASE_URL: "sqlserver://localhost;database=sundries;trustServerCertificate=true;"
         run: |
           cd api
           npm ci
@@ -85,8 +83,7 @@ jobs:
           PRISMA_REQUIRE_DATABASE_URL: "true"
         run: |
           set -euo pipefail
-          DATABASE_CONNECTION_STRING=$(az keyvault secret show --vault-name ${{ steps.kv.outputs.keyvault }} --name DatabaseConnectionString --query value -o tsv)
-          DATABASE_URL=$(node tools/normalize-sql-server-url.js "$DATABASE_CONNECTION_STRING")
+          DATABASE_URL=$(az keyvault secret show --vault-name ${{ steps.kv.outputs.keyvault }} --name DatabaseConnectionString --query value -o tsv)
           export DATABASE_URL
           cd api
           npx prisma migrate deploy
