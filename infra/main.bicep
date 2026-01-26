@@ -11,7 +11,8 @@ var sqlServerName = toLower('sundriessql${uniqueString(resourceGroup().id, 'sql'
 var databaseName = 'sundriesdb'
 var lawName = toLower('sundries-law-${uniqueString(resourceGroup().id, 'law')}')
 var aiName = toLower('sundries-ai-${uniqueString(resourceGroup().id, 'ai')}')
-var keyVaultName = toLower('sundries-kv-${uniqueString(resourceGroup().id, 'kv')}')
+var keyVaultSuffix = replace(uniqueString(resourceGroup().id, 'kv'), '-', '')
+var keyVaultName = toLower('sundrieskv${keyVaultSuffix[0..10]}')
 var appPlanName = 'sundries-plan-prod'
 var webAppName = 'sundries-web-prod'
 var apiAppName = 'sundries-api-prod'
@@ -238,6 +239,7 @@ resource keyVaultApiPolicy 'Microsoft.KeyVault/vaults/accessPolicies@2024-11-01'
 }
 
 output keyVaultName string = keyVault.name
+
 
 
 
