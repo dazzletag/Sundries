@@ -28,12 +28,13 @@ if (!server || !user || !password || !database) {
 }
 
 let host = server.replace(/^tcp:/i, "").trim();
-let port = "1433";
-if (host.includes(",")) {
-  const [maybeHost, maybePort] = host.split(",");
-  host = maybeHost.trim();
-  port = maybePort.trim() || port;
-}
+  let port = "1433";
+  if (host.includes(",")) {
+    const [maybeHost, maybePort] = host.split(",");
+    host = maybeHost.trim();
+    port = maybePort.trim() || port;
+  }
+host = host.replace(/\.\.+/g, ".");
 
 const normalizeBoolean = (value) => {
   if (!value) {
