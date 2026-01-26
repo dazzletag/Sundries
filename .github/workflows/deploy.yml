@@ -44,7 +44,7 @@ jobs:
           npm run build
           mkdir -p ../artifacts/api
           cp package*.json .env.example ../artifacts/api/
-          cp -r prisma prisma.config.ts dist ../artifacts/api/
+          cp -r prisma dist ../artifacts/api/
           cp -r node_modules ../artifacts/api/
           cd ../artifacts/api
           zip -r ../api.zip .
