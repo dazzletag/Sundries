@@ -84,11 +84,17 @@ jobs:
           PRISMA_REQUIRE_DATABASE_URL: "true"
         run: |
           set -euo pipefail
-          DATABASE_CONNECTION_STRING=$(az keyvault secret show --vault-name ${{ steps.kv.outputs.keyvault }} --name DatabaseConnectionString --query value -o tsv)
-          DATABASE_URL=$(node tools/normalize-sql-server-url.js "$DATABASE_CONNECTION_STRING")
-          export DATABASE_URL
+
+          DATABASE_CONNECTION_STRING=$(az keyvault secret show \
+            --vault-name ${{ steps.kv.outputs.keyvault }} \
+            --name DatabaseConnectionString \
+            --query value -o tsv)
+
+          export DATABASE_URL="$(node tools/normalize-sql-server-url.js "$DATABASE_CONNECTION_STRING")"
+
           cd api
           npx prisma migrate deploy
+
 
       - name: Deploy API
         run: |
