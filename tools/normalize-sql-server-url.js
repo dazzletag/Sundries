@@ -28,12 +28,12 @@ if (!server || !user || !password || !database) {
 }
 
 let host = server.replace(/^tcp:/i, "").trim();
-let port = "1433";
-if (host.includes(",")) {
-  const [maybeHost, maybePort] = host.split(",");
-  host = maybeHost.trim();
-  port = maybePort.trim() || port;
-}
+  let port = "1433";
+  if (host.includes(",")) {
+    const [maybeHost, maybePort] = host.split(",");
+    host = maybeHost.trim();
+    port = maybePort.trim() || port;
+  }
 host = host.replace(/\.\.+/g, ".");
 
 const normalizeBoolean = (value) => {
@@ -64,12 +64,12 @@ if (trustServerCertificate) {
   queryParams.push(`trustServerCertificate=${trustServerCertificate}`);
 }
 
-const options = queryParams.length ? `;${queryParams.join(";")}` : "";
+const queryString = queryParams.length ? `?${queryParams.join("&")}` : "";
 const url =
-  `sqlserver://${host}:${port}` +
+  `sqlserver://${host}:1433` +
   `;database=${database}` +
   `;user=${user}` +
   `;password=${encodeURIComponent(password)}` +
-  options;
+  `;encrypt=true`;
 
 process.stdout.write(url);
