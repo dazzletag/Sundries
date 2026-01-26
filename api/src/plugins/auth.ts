@@ -1,7 +1,7 @@
 import fp from "fastify-plugin";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { URL } from "url";
-import { createRemoteJWKSet, jwtVerify, JWTPayload } from "jose";
+import type { JWTPayload } from "jose";
 
 type AuthorizationHeader = string | string[] | undefined;
 
@@ -13,7 +13,7 @@ if (!tenantId || !audience) {
 }
 
 const issuer = `https://login.microsoftonline.com/${tenantId}/v2.0`;
-const jwks = createRemoteJWKSet(new URL(`${issuer}/discovery/v2.0/keys`));
+const jwksUrl = new URL(`${issuer}/discovery/v2.0/keys`);
 
 const extractRoles = (payload: JWTPayload): string[] => {
   const raw = payload.roles ?? payload.groups ?? [];
@@ -28,7 +28,10 @@ const normalizeHeader = (value: AuthorizationHeader) => {
 };
 
 const authPlugin = fp(async (fastify: FastifyInstance) => {
+  const { createRemoteJWKSet, jwtVerify } = await import("jose");
+  const jwks = createRemoteJWKSet(jwksUrl);
   fastify.decorate("authenticate", async (request: FastifyRequest, reply: FastifyReply) => {
+    const jwks = createRemoteJWKSet(jwksUrl);
     const authorization = normalizeHeader(request.headers["authorization"] ?? request.headers["Authorization"]);
     if (!authorization || !authorization.startsWith("Bearer ")) {
       throw fastify.httpErrors.unauthorized("Missing Bearer token");
