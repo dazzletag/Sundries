@@ -1,6 +1,9 @@
 import fp from "fastify-plugin";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { URL } from "node:url";
+const jwtVerify = require("jose/lib/jwt/verify");
+const { asKeyStore } = require("jose/lib/jwks/keystore");
+
 type JWTPayload = Record<string, unknown> & {
   roles?: unknown;
   groups?: unknown;
@@ -10,7 +13,6 @@ type JWTPayload = Record<string, unknown> & {
   oid?: unknown;
   sub?: unknown;
 };
-
 
 type AuthorizationHeader = string | string[] | undefined;
 
@@ -36,19 +38,44 @@ const normalizeHeader = (value: AuthorizationHeader) => {
   return value;
 };
 
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const { createRemoteJWKSet, jwtVerify } = require("jose");
+type FetchFunction = (input: string, init?: Record<string, unknown>) => Promise<{ ok: boolean; status: number; json: () => Promise<unknown> }>;
+const globalFetch = (globalThis as typeof globalThis & { fetch?: FetchFunction }).fetch;
+const fetcher: FetchFunction =
+  typeof globalFetch === "function"
+    ? globalFetch.bind(globalThis)
+    : (_url: string) => Promise.reject(new Error("`fetch` is not available in this environment"));
+
+const JWKS_CACHE_TTL = 5 * 60 * 1000;
+let keyStore: ReturnType<typeof asKeyStore> | null = null;
+let cacheExpiresAt = 0;
+
+const getKeyStore = async () => {
+  if (keyStore && Date.now() < cacheExpiresAt) {
+    return keyStore;
+  }
+
+  const response = await fetcher(jwksUrl.toString());
+  if (!response.ok) {
+    throw new Error(`Failed to load JWKS (${response.status})`);
+  }
+
+  const jwksPayload = await response.json();
+  keyStore = asKeyStore(jwksPayload);
+  cacheExpiresAt = Date.now() + JWKS_CACHE_TTL;
+  return keyStore;
+};
 
 const authPlugin = fp(async (fastify: FastifyInstance) => {
-  const jwks = createRemoteJWKSet(jwksUrl);
   fastify.decorate("authenticate", async (request: FastifyRequest, reply: FastifyReply) => {
-    const jwks = createRemoteJWKSet(jwksUrl);
-    const authorization = normalizeHeader(request.headers["authorization"] ?? request.headers["Authorization"]);
+    const authorization = normalizeHeader(
+      request.headers["authorization"] ?? request.headers["Authorization"]
+    );
     if (!authorization || !authorization.startsWith("Bearer ")) {
       throw fastify.httpErrors.unauthorized("Missing Bearer token");
     }
 
     const token = authorization.replace(/^Bearer\s+/i, "");
+    const jwks = await getKeyStore();
     const { payload } = await jwtVerify(token, jwks, {
       issuer,
       audience
