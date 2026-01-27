@@ -1,6 +1,6 @@
 import fp from "fastify-plugin";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
-import { URL } from "url";
+import { URL } from "node:url";
 type JWTPayload = Record<string, unknown> & {
   roles?: unknown;
   groups?: unknown;
@@ -36,8 +36,10 @@ const normalizeHeader = (value: AuthorizationHeader) => {
   return value;
 };
 
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const { createRemoteJWKSet, jwtVerify } = require("jose");
+
 const authPlugin = fp(async (fastify: FastifyInstance) => {
-  const { createRemoteJWKSet, jwtVerify } = require("jose");
   const jwks = createRemoteJWKSet(jwksUrl);
   fastify.decorate("authenticate", async (request: FastifyRequest, reply: FastifyReply) => {
     const jwks = createRemoteJWKSet(jwksUrl);
@@ -68,4 +70,3 @@ const authPlugin = fp(async (fastify: FastifyInstance) => {
 });
 
 export default authPlugin;
-
