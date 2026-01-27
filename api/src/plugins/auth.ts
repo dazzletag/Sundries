@@ -1,8 +1,7 @@
 import fp from "fastify-plugin";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { URL } from "node:url";
-const jwtVerify = require("jose/lib/jwt/verify");
-const { asKeyStore } = require("jose/lib/jwks/keystore");
+const { JWT, JWK } = require("jose");
 
 type JWTPayload = Record<string, unknown> & {
   roles?: unknown;
@@ -46,12 +45,12 @@ const fetcher: FetchFunction =
     : (_url: string) => Promise.reject(new Error("`fetch` is not available in this environment"));
 
 const JWKS_CACHE_TTL = 5 * 60 * 1000;
-let keyStore: ReturnType<typeof asKeyStore> | null = null;
+let cachedJWKS: { keys: unknown[] } | null = null;
 let cacheExpiresAt = 0;
 
-const getKeyStore = async () => {
-  if (keyStore && Date.now() < cacheExpiresAt) {
-    return keyStore;
+const getJWKS = async () => {
+  if (cachedJWKS && Date.now() < cacheExpiresAt) {
+    return cachedJWKS;
   }
 
   const response = await fetcher(jwksUrl.toString());
@@ -59,10 +58,9 @@ const getKeyStore = async () => {
     throw new Error(`Failed to load JWKS (${response.status})`);
   }
 
-  const jwksPayload = await response.json();
-  keyStore = asKeyStore(jwksPayload);
+  cachedJWKS = (await response.json()) as { keys: unknown[] };
   cacheExpiresAt = Date.now() + JWKS_CACHE_TTL;
-  return keyStore;
+  return cachedJWKS;
 };
 
 const authPlugin = fp(async (fastify: FastifyInstance) => {
@@ -75,8 +73,19 @@ const authPlugin = fp(async (fastify: FastifyInstance) => {
     }
 
     const token = authorization.replace(/^Bearer\s+/i, "");
-    const jwks = await getKeyStore();
-    const { payload } = await jwtVerify(token, jwks, {
+    const decoded = JWT.decode(token, { complete: true });
+    const kid = decoded?.header?.kid;
+    if (!kid) {
+      throw fastify.httpErrors.unauthorized("Invalid token header");
+    }
+
+    const jwks = await getJWKS();
+    const jwk = (jwks.keys as Record<string, unknown>[]).find((key) => key.kid === kid);
+    if (!jwk) {
+      throw fastify.httpErrors.unauthorized("Unknown JWK kid");
+    }
+
+    const { payload } = JWT.verify(token, JWK.asKey(jwk), {
       issuer,
       audience
     });
