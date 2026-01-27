@@ -8,6 +8,12 @@ import providerRoutes from "./providers";
 import invoiceRoutes from "./invoices";
 
 export default async function registerRoutes(fastify: FastifyInstance) {
+  const healthResponse = () => ({
+    status: "ok",
+    timestamp: new Date().toISOString()
+  });
+
+  fastify.get("/", async () => healthResponse());
   fastify.get<{ Params: { robotsFile: string } }>("/:robotsFile.txt", async (request, reply) => {
     if (!/^robots\d+$/.test(request.params.robotsFile)) {
       reply.callNotFound();
