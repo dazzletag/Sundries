@@ -8,10 +8,16 @@ import providerRoutes from "./providers";
 import invoiceRoutes from "./invoices";
 
 export default async function registerRoutes(fastify: FastifyInstance) {
-  fastify.get(/^\/robots\d+\.txt$/, async () => ({
-    status: "ok",
-    timestamp: new Date().toISOString()
-  }));
+  fastify.get<{ Params: { robotsFile: string } }>("/:robotsFile.txt", async (request, reply) => {
+    if (!/^robots\d+$/.test(request.params.robotsFile)) {
+      reply.callNotFound();
+      return;
+    }
+    return {
+      status: "ok",
+      timestamp: new Date().toISOString()
+    };
+  });
 
   fastify.get("/health", async () => {
     try {
