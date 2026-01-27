@@ -37,7 +37,7 @@ const normalizeHeader = (value: AuthorizationHeader) => {
 };
 
 const authPlugin = fp(async (fastify: FastifyInstance) => {
-  const { createRemoteJWKSet, jwtVerify } = await import("jose");
+  const { createRemoteJWKSet, jwtVerify } = require("jose");
   const jwks = createRemoteJWKSet(jwksUrl);
   fastify.decorate("authenticate", async (request: FastifyRequest, reply: FastifyReply) => {
     const jwks = createRemoteJWKSet(jwksUrl);
