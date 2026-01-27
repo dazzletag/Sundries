@@ -1,8 +1,10 @@
+/// <reference types="node" />
 import { defineConfig } from "prisma/config";
 
 export default defineConfig({
-  migrate: {
-    datasource: "db",
+  engine: "classic",
+  datasource: {
     url: process.env.DATABASE_URL!,
   },
 });
+
