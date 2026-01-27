@@ -1,7 +1,16 @@
 import fp from "fastify-plugin";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { URL } from "url";
-import type { JWTPayload } from "jose";
+type JWTPayload = Record<string, unknown> & {
+  roles?: unknown;
+  groups?: unknown;
+  upn?: unknown;
+  preferred_username?: unknown;
+  tid?: unknown;
+  oid?: unknown;
+  sub?: unknown;
+};
+
 
 type AuthorizationHeader = string | string[] | undefined;
 
