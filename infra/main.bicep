@@ -172,10 +172,6 @@ resource apiApp 'Microsoft.Web/sites@2024-11-01' = {
           name: 'SCM_DO_BUILD_DURING_DEPLOYMENT'
           value: 'true'
         }
-        {
-          name: 'SCM_RUN_FROM_PACKAGE'
-          value: '0'
-        }
       ]
     }
   }
@@ -221,10 +217,6 @@ resource webApp 'Microsoft.Web/sites@2024-11-01' = {
         {
           name: 'SCM_DO_BUILD_DURING_DEPLOYMENT'
           value: 'true'
-        }
-        {
-          name: 'SCM_RUN_FROM_PACKAGE'
-          value: '0'
         }
       ]
     }
