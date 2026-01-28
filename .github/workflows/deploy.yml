@@ -152,3 +152,40 @@ jobs:
           app_location: "web"
           api_location: ""
           output_location: "dist"
+
+  verify_deployment:
+    needs: deploy_frontend
+    runs-on: ubuntu-latest
+    env:
+      API_HEALTH_URL: https://sundries-api-prod.azurewebsites.net/health
+      STATIC_WEBAPP_URL: https://orange-moss-0f7e52903.1.azurestaticapps.net
+    steps:
+      - name: Wait for API health
+        shell: bash
+        run: |
+          set -euo pipefail
+          success=0
+          for attempt in {1..10}; do
+            if curl --fail "$API_HEALTH_URL"; then
+              success=1
+              break
+            fi
+            echo "Attempt $attempt failed; retrying in 10s..."
+            sleep 10
+          done
+          if [ "$success" -ne 1 ]; then
+            echo "API health endpoint did not become healthy" >&2
+            exit 1
+          fi
+      - name: Confirm static site and API reference
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Fetching static web app content from $STATIC_WEBAPP_URL"
+          html=$(mktemp)
+          curl --silent --show-error --fail "$STATIC_WEBAPP_URL" -o "$html"
+          if ! grep -q "https://sundries-api-prod.azurewebsites.net" "$html"; then
+            echo "Static web app did not reference the API hostname over HTTPS" >&2
+            exit 1
+          fi
+          echo "Static web app is reachable and references the API over HTTPS"
