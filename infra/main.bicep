@@ -1,6 +1,5 @@
 param location string = resourceGroup().location
 param aadTenantId string
-param webClientId string
 param apiAudience string = 'api://sundries-api'
 @secure()
 param sqlAdminPassword string
@@ -14,7 +13,6 @@ var aiName = toLower('sundries-ai-${uniqueString(resourceGroup().id, 'ai')}')
 var keyVaultSuffix = replace(uniqueString(resourceGroup().id, 'kv'), '-', '')
 var keyVaultName = toLower('sundrieskv${substring(keyVaultSuffix, 0, min(11, length(keyVaultSuffix)))}')
 var appPlanName = 'sundries-plan-prod'
-var webAppName = 'sundries-web-prod'
 var apiAppName = 'sundries-api-prod'
 var sqlServerHostnameSuffix = environment().suffixes.sqlServerHostname
 var databaseConnectionString = 'Server=tcp:${sqlServerName}${sqlServerHostnameSuffix},1433;Initial Catalog=${databaseName};Persist Security Info=False;Encrypt=True;TrustServerCertificate=False;MultipleActiveResultSets=False;User ID=${sqlAdminLogin};Password=${sqlAdminPassword};'
@@ -124,7 +122,6 @@ resource appPlan 'Microsoft.Web/serverfarms@2024-11-01' = {
   }
 }
 
-var apiBaseUri = 'https://${apiAppName}.azurewebsites.net'
 var aiConnectionString = appInsights.properties.ConnectionString
 
 resource apiApp 'Microsoft.Web/sites@2024-11-01' = {
@@ -177,52 +174,6 @@ resource apiApp 'Microsoft.Web/sites@2024-11-01' = {
   }
 }
 
-resource webApp 'Microsoft.Web/sites@2024-11-01' = {
-  name: webAppName
-  location: location
-  identity: {
-    type: 'SystemAssigned'
-  }
-  kind: 'app,linux'
-  properties: {
-    serverFarmId: appPlan.id
-    siteConfig: {
-      linuxFxVersion: 'NODE|18-lts'
-      appCommandLine: 'node server.js'
-      appSettings: [
-        {
-          name: 'APPINSIGHTS_CONNECTION_STRING'
-          value: aiConnectionString
-        }
-        {
-          name: 'VITE_API_BASE_URL'
-          value: apiBaseUri
-        }
-        {
-          name: 'VITE_AAD_CLIENT_ID'
-          value: webClientId
-        }
-        {
-          name: 'VITE_AAD_TENANT_ID'
-          value: aadTenantId
-        }
-        {
-          name: 'VITE_API_AUDIENCE'
-          value: apiAudience
-        }
-        {
-          name: 'KEYVAULT_NAME'
-          value: keyVault.name
-        }
-        {
-          name: 'SCM_DO_BUILD_DURING_DEPLOYMENT'
-          value: 'true'
-        }
-      ]
-    }
-  }
-}
-
 resource keyVaultApiPolicy 'Microsoft.KeyVault/vaults/accessPolicies@2024-11-01' = {
   parent: keyVault
   name: 'add'
@@ -238,20 +189,11 @@ resource keyVaultApiPolicy 'Microsoft.KeyVault/vaults/accessPolicies@2024-11-01'
           ]
         }
       }
-      {
-        tenantId: tenant().tenantId
-        objectId: webApp.identity.principalId
-        permissions: {
-          secrets: [
-            'get'
-            'list'
-          ]
-        }
-      }
     ]
   }
 }
 
+output apiBaseUri string = 'https://${apiAppName}.azurewebsites.net'
 output keyVaultName string = keyVault.name
 
 

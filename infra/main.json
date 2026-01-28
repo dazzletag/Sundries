@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.39.26.7824",
-      "templateHash": "4702608402601500800"
+      "templateHash": "13773765703165929399"
     }
   },
   "parameters": {
@@ -14,9 +14,6 @@
       "defaultValue": "[resourceGroup().location]"
     },
     "aadTenantId": {
-      "type": "string"
-    },
-    "webClientId": {
       "type": "string"
     },
     "apiAudience": {
@@ -36,13 +33,12 @@
     "databaseName": "sundriesdb",
     "lawName": "[toLower(format('sundries-law-{0}', uniqueString(resourceGroup().id, 'law')))]",
     "aiName": "[toLower(format('sundries-ai-{0}', uniqueString(resourceGroup().id, 'ai')))]",
-    "keyVaultName": "[toLower(format('sundries-kv-{0}', uniqueString(resourceGroup().id, 'kv')))]",
+    "keyVaultSuffix": "[replace(uniqueString(resourceGroup().id, 'kv'), '-', '')]",
+    "keyVaultName": "[toLower(format('sundrieskv{0}', substring(variables('keyVaultSuffix'), 0, min(11, length(variables('keyVaultSuffix'))))))]",
     "appPlanName": "sundries-plan-prod",
-    "webAppName": "sundries-web-prod",
     "apiAppName": "sundries-api-prod",
     "sqlServerHostnameSuffix": "[environment().suffixes.sqlServerHostname]",
-    "databaseConnectionString": "[format('Server=tcp:{0}.{1},1433;Initial Catalog={2};Persist Security Info=False;Encrypt=True;TrustServerCertificate=False;MultipleActiveResultSets=False;User ID={3};Password={4};', variables('sqlServerName'), variables('sqlServerHostnameSuffix'), variables('databaseName'), variables('sqlAdminLogin'), parameters('sqlAdminPassword'))]",
-    "apiBaseUri": "[format('https://{0}.azurewebsites.net', variables('apiAppName'))]"
+    "databaseConnectionString": "[format('Server=tcp:{0}{1},1433;Initial Catalog={2};Persist Security Info=False;Encrypt=True;TrustServerCertificate=False;MultipleActiveResultSets=False;User ID={3};Password={4};', variables('sqlServerName'), variables('sqlServerHostnameSuffix'), variables('databaseName'), variables('sqlAdminLogin'), parameters('sqlAdminPassword'))]"
   },
   "resources": [
     {
@@ -62,6 +58,7 @@
       "apiVersion": "2020-02-02",
       "name": "[variables('aiName')]",
       "location": "[parameters('location')]",
+      "kind": "web",
       "properties": {
         "Application_Type": "web",
         "Flow_Type": "Bluefield",
@@ -114,7 +111,7 @@
     },
     {
       "type": "Microsoft.KeyVault/vaults",
-      "apiVersion": "2023-12-01",
+      "apiVersion": "2024-11-01",
       "name": "[variables('keyVaultName')]",
       "location": "[parameters('location')]",
       "properties": {
@@ -125,7 +122,6 @@
         "tenantId": "[tenant().tenantId]",
         "enableSoftDelete": true,
         "softDeleteRetentionInDays": 90,
-        "enablePurgeProtection": false,
         "accessPolicies": [
           {
             "tenantId": "[tenant().tenantId]",
@@ -143,7 +139,7 @@
     },
     {
       "type": "Microsoft.KeyVault/vaults/secrets",
-      "apiVersion": "2023-12-01",
+      "apiVersion": "2024-11-01",
       "name": "[format('{0}/{1}', variables('keyVaultName'), 'DatabaseConnectionString')]",
       "properties": {
         "value": "[variables('databaseConnectionString')]"
@@ -154,7 +150,7 @@
     },
     {
       "type": "Microsoft.Web/serverfarms",
-      "apiVersion": "2024-03-01",
+      "apiVersion": "2024-11-01",
       "name": "[variables('appPlanName')]",
       "location": "[parameters('location')]",
       "kind": "linux",
@@ -169,7 +165,7 @@
     },
     {
       "type": "Microsoft.Web/sites",
-      "apiVersion": "2024-03-01",
+      "apiVersion": "2024-11-01",
       "name": "[variables('apiAppName')]",
       "location": "[parameters('location')]",
       "identity": {
@@ -180,18 +176,15 @@
         "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', variables('appPlanName'))]",
         "siteConfig": {
           "linuxFxVersion": "NODE|18-lts",
+          "appCommandLine": "node dist/index.js",
           "appSettings": [
             {
-              "name": "WEBSITE_RUN_FROM_PACKAGE",
-              "value": "1"
-            },
-            {
               "name": "APPINSIGHTS_CONNECTION_STRING",
-              "value": "[listKeys(resourceId('Microsoft.Insights/components', variables('aiName')), '2020-02-02').connectionString]"
+              "value": "[reference(resourceId('Microsoft.Insights/components', variables('aiName')), '2020-02-02').ConnectionString]"
             },
             {
               "name": "APPLICATIONINSIGHTS_CONNECTION_STRING",
-              "value": "[listKeys(resourceId('Microsoft.Insights/components', variables('aiName')), '2020-02-02').connectionString]"
+              "value": "[reference(resourceId('Microsoft.Insights/components', variables('aiName')), '2020-02-02').ConnectionString]"
             },
             {
               "name": "KEYVAULT_NAME",
@@ -199,7 +192,7 @@
             },
             {
               "name": "DATABASE_URL",
-              "value": "[format('@Microsoft.KeyVault(SecretUri={0})', reference(resourceId('Microsoft.KeyVault/vaults/secrets', variables('keyVaultName'), 'DatabaseConnectionString'), '2023-12-01').secretUriWithVersion)]"
+              "value": "[format('@Microsoft.KeyVault(SecretUri={0})', reference(resourceId('Microsoft.KeyVault/vaults/secrets', variables('keyVaultName'), 'DatabaseConnectionString'), '2024-11-01').secretUriWithVersion)]"
             },
             {
               "name": "TENANT_ID",
@@ -211,7 +204,11 @@
             },
             {
               "name": "LOG_LEVEL",
-              "value": "Information"
+              "value": "info"
+            },
+            {
+              "name": "SCM_DO_BUILD_DURING_DEPLOYMENT",
+              "value": "true"
             }
           ]
         }
@@ -224,62 +221,14 @@
       ]
     },
     {
-      "type": "Microsoft.Web/sites",
-      "apiVersion": "2024-03-01",
-      "name": "[variables('webAppName')]",
-      "location": "[parameters('location')]",
-      "kind": "app,linux",
-      "properties": {
-        "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', variables('appPlanName'))]",
-        "siteConfig": {
-          "linuxFxVersion": "NODE|18-lts",
-          "appSettings": [
-            {
-              "name": "WEBSITE_RUN_FROM_PACKAGE",
-              "value": "1"
-            },
-            {
-              "name": "APPINSIGHTS_CONNECTION_STRING",
-              "value": "[listKeys(resourceId('Microsoft.Insights/components', variables('aiName')), '2020-02-02').connectionString]"
-            },
-            {
-              "name": "VITE_API_BASE_URL",
-              "value": "[variables('apiBaseUri')]"
-            },
-            {
-              "name": "VITE_AAD_CLIENT_ID",
-              "value": "[parameters('webClientId')]"
-            },
-            {
-              "name": "VITE_AAD_TENANT_ID",
-              "value": "[parameters('aadTenantId')]"
-            },
-            {
-              "name": "VITE_API_AUDIENCE",
-              "value": "[parameters('apiAudience')]"
-            },
-            {
-              "name": "KEYVAULT_NAME",
-              "value": "[variables('keyVaultName')]"
-            }
-          ]
-        }
-      },
-      "dependsOn": [
-        "[resourceId('Microsoft.Insights/components', variables('aiName'))]",
-        "[resourceId('Microsoft.Web/serverfarms', variables('appPlanName'))]",
-        "[resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName'))]"
-      ]
-    },
-    {
       "type": "Microsoft.KeyVault/vaults/accessPolicies",
-      "apiVersion": "2023-12-01",
-      "name": "[format('{0}/{1}', variables('keyVaultName'), 'add-api-policy')]",
+      "apiVersion": "2024-11-01",
+      "name": "[format('{0}/{1}', variables('keyVaultName'), 'add')]",
       "properties": {
         "accessPolicies": [
           {
             "tenantId": "[tenant().tenantId]",
-            "objectId": "[reference(resourceId('Microsoft.Web/sites', variables('apiAppName')), '2024-03-01', 'full').identity.principalId]",
+            "objectId": "[reference(resourceId('Microsoft.Web/sites', variables('apiAppName')), '2024-11-01', 'full').identity.principalId]",
             "permissions": {
               "secrets": [
                 "get",
@@ -294,5 +243,15 @@
         "[resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName'))]"
       ]
     }
-  ]
+  ],
+  "outputs": {
+    "apiBaseUri": {
+      "type": "string",
+      "value": "[format('https://{0}.azurewebsites.net', variables('apiAppName'))]"
+    },
+    "keyVaultName": {
+      "type": "string",
+      "value": "[variables('keyVaultName')]"
+    }
+  }
 }

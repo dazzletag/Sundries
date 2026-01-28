@@ -5,16 +5,17 @@ on:
     branches: [main]
 
 jobs:
-  deploy:
+  deploy_api:
     runs-on: ubuntu-latest
     env:
       AZURE_RESOURCE_GROUP: BCHSystems
       AZURE_LOCATION: uksouth
       SQL_ADMIN_PASSWORD: ${{ secrets.SQL_ADMIN_PASSWORD }}
       AAD_TENANT_ID: ${{ secrets.AAD_TENANT_ID }}
-      WEB_CLIENT_ID: ${{ secrets.WEB_CLIENT_ID }}
       API_AUDIENCE: ${{ secrets.API_AUDIENCE }}
       AZURE_CLIENT_OBJECT_ID: ${{ secrets.AZURE_CLIENT_OBJECT_ID }}
+    outputs:
+      api-base-url: ${{ steps.deployment-outputs.outputs.api-base-url }}
     steps:
       - uses: actions/checkout@v4
 
@@ -28,32 +29,25 @@ jobs:
           rm -rf artifacts
           mkdir -p artifacts
 
-      - name: Build frontend + package artifact
-        run: |
-          cd web
-          npm ci
-          npm run build
-          cd ..
-          rm -rf artifacts/web
-          mkdir -p artifacts/web
-          cp web/package*.json web/server.js artifacts/web/
-          cp -r web/dist artifacts/web/
-
-      - name: Build backend + package artifact
+      - name: Build backend and package
         run: |
           cd api
           npm ci
           npm run prisma:generate
           npm run build
+          npm prune --production
           cd ..
           rm -rf artifacts/api
           mkdir -p artifacts/api
           cp api/package*.json api/.env.example artifacts/api/
           cp -r api/dist artifacts/api/
           cp -r api/prisma artifacts/api/
+          cp -r api/node_modules artifacts/api/
+          cd artifacts/api
+          zip -r ../api.zip .
+          cd ../..
 
       - name: Azure login
-        id: login
         uses: azure/login@v1
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
@@ -61,32 +55,39 @@ jobs:
       - name: Deploy infrastructure
         shell: bash
         env:
-          DEPLOYMENT_PRINCIPAL_OBJECT_ID: ${{ secrets.AZURE_CLIENT_OBJECT_ID }}
+          DEPLOYMENT_OUTPUT_DEST: /tmp/deployment-outputs.json
         run: |
           set -euo pipefail
           az group create -n $AZURE_RESOURCE_GROUP -l $AZURE_LOCATION
-          DEPLOYMENT_OUTPUT=$(az deployment group create \
+          az deployment group create \
             -g $AZURE_RESOURCE_GROUP \
             --template-file infra/main.bicep \
             --parameters sqlAdminPassword="$SQL_ADMIN_PASSWORD" \
             aadTenantId="$AAD_TENANT_ID" \
-            webClientId="$WEB_CLIENT_ID" \
             apiAudience="${API_AUDIENCE:-api://sundries-api}" \
-            deploymentPrincipalObjectId="${DEPLOYMENT_PRINCIPAL_OBJECT_ID:-$AZURE_CLIENT_OBJECT_ID}" \
-            --query properties.outputs -o json)
-          echo "$DEPLOYMENT_OUTPUT" > /tmp/deployment-outputs.json
+            deploymentPrincipalObjectId="$AZURE_CLIENT_OBJECT_ID" \
+            --query properties.outputs -o json > "$DEPLOYMENT_OUTPUT_DEST"
+          cat "$DEPLOYMENT_OUTPUT_DEST"
 
       - name: Extract key vault name
         id: kv
         run: |
           KEY_VAULT_NAME=$(jq -r '.keyVaultName.value' /tmp/deployment-outputs.json)
           echo "keyvault=$KEY_VAULT_NAME" >> $GITHUB_OUTPUT
+
+      - name: Save deployment outputs
+        id: deployment-outputs
+        run: |
+          API_BASE_URL=$(jq -r '.apiBaseUri.value' /tmp/deployment-outputs.json)
+          echo "api-base-url=$API_BASE_URL" >> $GITHUB_OUTPUT
+
       - name: Grant pipeline service principal access to Key Vault
         run: |
           az keyvault set-policy \
             --name ${{ steps.kv.outputs.keyvault }} \
             --object-id $AZURE_CLIENT_OBJECT_ID \
             --secret-permissions get list
+
       - name: Debug prisma config presence
         run: |
           echo "Searching for prisma.config..."
@@ -97,44 +98,57 @@ jobs:
           PRISMA_REQUIRE_DATABASE_URL: "true"
         run: |
           set -euo pipefail
-
           DATABASE_CONNECTION_STRING=$(az keyvault secret show \
             --vault-name ${{ steps.kv.outputs.keyvault }} \
             --name DatabaseConnectionString \
             --query value -o tsv)
-
           export DATABASE_URL="$(node tools/normalize-sql-server-url.js "$DATABASE_CONNECTION_STRING")"
-
           cd api
-          
           npx prisma migrate deploy
-
 
       - name: Deploy API
         run: |
           az webapp deploy \
             --resource-group $AZURE_RESOURCE_GROUP \
             --name sundries-api-prod \
-            --src-path artifacts/api \
+            --type zip \
+            --src-path artifacts/api.zip \
             --target-path /home/site/wwwroot \
-            --clean true
-
-      - name: Deploy frontend
-        run: |
-          az webapp deploy \
-            --resource-group $AZURE_RESOURCE_GROUP \
-            --name sundries-web-prod \
-            --src-path artifacts/web \
-            --target-path /home/site/wwwroot \
-            --clean true
+            --clean true \
+            --restart true
 
       - name: Smoke test API
         run: |
           curl --fail https://sundries-api-prod.azurewebsites.net/health
 
-      - name: Smoke test web
+  deploy_frontend:
+    needs: deploy_api
+    runs-on: ubuntu-latest
+    env:
+      VITE_API_BASE_URL: ${{ needs.deploy_api.outputs.api-base-url }}
+      VITE_AAD_CLIENT_ID: ${{ secrets.WEB_CLIENT_ID }}
+      VITE_AAD_TENANT_ID: ${{ secrets.AAD_TENANT_ID }}
+      VITE_API_AUDIENCE: ${{ secrets.API_AUDIENCE }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Build frontend
         run: |
-          curl --fail https://sundries-web-prod.azurewebsites.net
+          cd web
+          npm ci
+          npm run build
 
-
-
+      - name: Deploy static web app
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEBAPP_API_TOKEN }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          action: "upload"
+          app_location: "web"
+          api_location: ""
+          output_location: "dist"
