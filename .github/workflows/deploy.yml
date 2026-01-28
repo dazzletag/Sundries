@@ -28,25 +28,32 @@ jobs:
           rm -rf artifacts
           mkdir -p artifacts
 
-      - name: Build frontend
+      - name: Build frontend + package artifact
         run: |
           cd web
           npm ci
           npm run build
-          cd dist
-          zip -r ../../artifacts/web.zip .
+          cd ..
+          rm -rf artifacts/web
+          mkdir -p artifacts/web
+          cp web/package*.json web/server.js artifacts/web/
+          cp -r web/dist artifacts/web/
+          cd artifacts/web
+          zip -r ../web.zip .
 
-      - name: Build backend
+      - name: Build backend + package artifact
         run: |
           cd api
           npm ci
           npm run prisma:generate
           npm run build
-          mkdir -p ../artifacts/api
-          cp package*.json .env.example ../artifacts/api/
-          cp -r prisma dist ../artifacts/api/
-          cp -r node_modules ../artifacts/api/
-          cd ../artifacts/api
+          cd ..
+          rm -rf artifacts/api
+          mkdir -p artifacts/api
+          cp api/package*.json api/.env.example artifacts/api/
+          cp -r api/dist artifacts/api/
+          cp -r api/prisma artifacts/api/
+          cd artifacts/api
           zip -r ../api.zip .
 
       - name: Azure login

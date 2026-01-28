@@ -138,11 +138,8 @@ resource apiApp 'Microsoft.Web/sites@2024-11-01' = {
     serverFarmId: appPlan.id
     siteConfig: {
       linuxFxVersion: 'NODE|18-lts'
+      appCommandLine: 'node dist/index.js'
       appSettings: [
-        {
-          name: 'WEBSITE_RUN_FROM_PACKAGE'
-          value: '1'
-        }
         {
           name: 'APPINSIGHTS_CONNECTION_STRING'
           value: aiConnectionString
@@ -171,6 +168,14 @@ resource apiApp 'Microsoft.Web/sites@2024-11-01' = {
           name: 'LOG_LEVEL'
           value: 'info'
         }
+        {
+          name: 'SCM_DO_BUILD_DURING_DEPLOYMENT'
+          value: 'true'
+        }
+        {
+          name: 'SCM_RUN_FROM_PACKAGE'
+          value: '0'
+        }
       ]
     }
   }
@@ -187,11 +192,8 @@ resource webApp 'Microsoft.Web/sites@2024-11-01' = {
     serverFarmId: appPlan.id
     siteConfig: {
       linuxFxVersion: 'NODE|18-lts'
+      appCommandLine: 'node server.js'
       appSettings: [
-        {
-          name: 'WEBSITE_RUN_FROM_PACKAGE'
-          value: '1'
-        }
         {
           name: 'APPINSIGHTS_CONNECTION_STRING'
           value: aiConnectionString
@@ -215,6 +217,14 @@ resource webApp 'Microsoft.Web/sites@2024-11-01' = {
         {
           name: 'KEYVAULT_NAME'
           value: keyVault.name
+        }
+        {
+          name: 'SCM_DO_BUILD_DURING_DEPLOYMENT'
+          value: 'true'
+        }
+        {
+          name: 'SCM_RUN_FROM_PACKAGE'
+          value: '0'
         }
       ]
     }
