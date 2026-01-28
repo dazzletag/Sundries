@@ -167,7 +167,11 @@ resource apiApp 'Microsoft.Web/sites@2024-11-01' = {
         }
         {
           name: 'SCM_DO_BUILD_DURING_DEPLOYMENT'
-          value: 'true'
+          value: 'false'
+        }
+        {
+          name: 'ENABLE_ORYX_BUILD'
+          value: 'false'
         }
       ]
     }
