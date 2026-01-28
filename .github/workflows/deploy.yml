@@ -38,8 +38,6 @@ jobs:
           mkdir -p artifacts/web
           cp web/package*.json web/server.js artifacts/web/
           cp -r web/dist artifacts/web/
-          cd artifacts/web
-          zip -r ../web.zip .
 
       - name: Build backend + package artifact
         run: |
@@ -53,8 +51,6 @@ jobs:
           cp api/package*.json api/.env.example artifacts/api/
           cp -r api/dist artifacts/api/
           cp -r api/prisma artifacts/api/
-          cd artifacts/api
-          zip -r ../api.zip .
 
       - name: Azure login
         id: login
@@ -85,6 +81,12 @@ jobs:
         run: |
           KEY_VAULT_NAME=$(jq -r '.keyVaultName.value' /tmp/deployment-outputs.json)
           echo "keyvault=$KEY_VAULT_NAME" >> $GITHUB_OUTPUT
+      - name: Grant pipeline service principal access to Key Vault
+        run: |
+          az keyvault set-policy \
+            --name ${{ steps.kv.outputs.keyvault }} \
+            --object-id ${{ steps.login.outputs.principalId }} \
+            --secret-permissions get list
       - name: Debug prisma config presence
         run: |
           echo "Searching for prisma.config..."
@@ -113,16 +115,18 @@ jobs:
           az webapp deploy \
             --resource-group $AZURE_RESOURCE_GROUP \
             --name sundries-api-prod \
-            --src-path artifacts/api.zip \
-            --type zip
+            --src-path artifacts/api \
+            --target-path /home/site/wwwroot \
+            --clean true
 
       - name: Deploy frontend
         run: |
           az webapp deploy \
             --resource-group $AZURE_RESOURCE_GROUP \
             --name sundries-web-prod \
-            --src-path artifacts/web.zip \
-            --type zip
+            --src-path artifacts/web \
+            --target-path /home/site/wwwroot \
+            --clean true
 
       - name: Smoke test API
         run: |
