@@ -14,6 +14,8 @@ jobs:
       AAD_TENANT_ID: ${{ secrets.AAD_TENANT_ID }}
       API_AUDIENCE: ${{ secrets.API_AUDIENCE }}
       AZURE_CLIENT_OBJECT_ID: ${{ secrets.AZURE_CLIENT_OBJECT_ID }}
+      AZURE_DEPLOYMENT_STORAGE_ACCOUNT: sundriesdeploysa
+      AZURE_DEPLOYMENT_CONTAINER: deployments
     outputs:
       api-base-url: ${{ steps.deployment-outputs.outputs.api-base-url }}
     steps:
@@ -42,7 +44,6 @@ jobs:
           cp api/package*.json api/.env.example artifacts/api/
           cp -r api/dist artifacts/api/
           cp -r api/prisma artifacts/api/
-          cp -r api/node_modules artifacts/api/
           cd artifacts/api
           zip -r ../api.zip .
           cd ../..
@@ -106,16 +107,48 @@ jobs:
           cd api
           npx prisma migrate deploy
 
-      - name: Deploy API
+      - name: Upload API artifact to storage
+        id: upload-artifact
+        env:
+          AZURE_STORAGE_ACCOUNT: ${{ env.AZURE_DEPLOYMENT_STORAGE_ACCOUNT }}
+          AZURE_STORAGE_CONTAINER: ${{ env.AZURE_DEPLOYMENT_CONTAINER }}
+          AZURE_RESOURCE_GROUP: ${{ env.AZURE_RESOURCE_GROUP }}
         run: |
-          az webapp deploy \
+          set -euo pipefail
+          ACCOUNT_KEY=$(az storage account keys list \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --account-name "$AZURE_STORAGE_ACCOUNT" \
+            --query "[0].value" -o tsv)
+          az storage container create \
+            --name "$AZURE_STORAGE_CONTAINER" \
+            --account-name "$AZURE_STORAGE_ACCOUNT" \
+            --account-key "$ACCOUNT_KEY" \
+            --public-access off
+          az storage blob upload \
+            --account-name "$AZURE_STORAGE_ACCOUNT" \
+            --account-key "$ACCOUNT_KEY" \
+            --container-name "$AZURE_STORAGE_CONTAINER" \
+            --name sundries-api.zip \
+            --file artifacts/api.zip \
+            --overwrite
+          EXPIRY=$(date -u -d '1 hour' '+%Y-%m-%dT%H:%MZ')
+          SAS_TOKEN=$(az storage blob generate-sas \
+            --account-name "$AZURE_STORAGE_ACCOUNT" \
+            --account-key "$ACCOUNT_KEY" \
+            --container-name "$AZURE_STORAGE_CONTAINER" \
+            --name sundries-api.zip \
+            --permissions r \
+            --expiry "$EXPIRY" \
+            --auth-mode key \
+            -o tsv)
+          echo "artifact-url=https://$AZURE_STORAGE_ACCOUNT.blob.core.windows.net/$AZURE_STORAGE_CONTAINER/sundries-api.zip?$SAS_TOKEN" >> $GITHUB_OUTPUT
+
+      - name: Deploy API from storage
+        run: |
+          az webapp deployment source config-zip \
             --resource-group $AZURE_RESOURCE_GROUP \
             --name sundries-api-prod \
-            --type zip \
-            --src-path artifacts/api.zip \
-            --target-path /home/site/wwwroot \
-            --clean true \
-            --restart true
+            --src "${{ steps.upload-artifact.outputs.artifact-url }}"
 
       - name: Smoke test API
         run: |
