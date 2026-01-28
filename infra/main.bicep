@@ -134,7 +134,7 @@ resource apiApp 'Microsoft.Web/sites@2024-11-01' = {
   properties: {
     serverFarmId: appPlan.id
     siteConfig: {
-      linuxFxVersion: 'NODE|18-lts'
+      linuxFxVersion: 'NODE|20-lts'
       appCommandLine: 'node dist/index.js'
       appSettings: [
         {
@@ -167,7 +167,7 @@ resource apiApp 'Microsoft.Web/sites@2024-11-01' = {
         }
         {
           name: 'SCM_DO_BUILD_DURING_DEPLOYMENT'
-          value: 'true'
+          value: 'false'
         }
       ]
     }
