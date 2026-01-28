@@ -57,7 +57,7 @@ jobs:
       - name: Validate API ZIP contains runtime deps
         shell: bash
         run: |
-          unzip -l artifacts/api.zip | grep -q '^node_modules/fastify/package.json$' \
+          unzip -l artifacts/api.zip | grep -q 'node_modules/fastify/package.json$' \
             || { echo "fastify missing from ZIP"; exit 1; }
 
       - name: Azure login
