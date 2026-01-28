@@ -167,7 +167,7 @@ resource apiApp 'Microsoft.Web/sites@2024-11-01' = {
         }
         {
           name: 'SCM_DO_BUILD_DURING_DEPLOYMENT'
-          value: 'false'
+          value: 'true'
         }
       ]
     }
