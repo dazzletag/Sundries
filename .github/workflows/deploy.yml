@@ -27,30 +27,32 @@ jobs:
           node-version: 20
 
       - name: Prepare artifact directory
+        shell: bash
         run: |
           rm -rf artifacts
           mkdir -p artifacts
 
-      - name: Build backend and package
+      - name: Build and package API
+        shell: bash
+        working-directory: api
         run: |
-          cd api
           npm ci
-          npm run prisma:generate
+          npx prisma generate
           npm run build
-          npm prune --production
-          cd ..
-          rm -rf artifacts/api
-          mkdir -p artifacts/api
-          cp api/package*.json api/.env.example artifacts/api/
-          cp -r api/dist artifacts/api/
-          cp -r api/prisma artifacts/api/
-          cd artifacts/api
-          zip -r ../api.zip .
-          cd ../..
+          zip -r api.zip dist prisma node_modules package.json package-lock.json
+          rm -rf ../artifacts
+          mkdir -p ../artifacts
+          mv api.zip ../artifacts/api.zip
 
       - name: Show API artifact size
+        shell: bash
         run: |
           ls -lh artifacts/api.zip
+      
+      - name: Validate API ZIP paths
+        shell: bash
+        run: |
+          unzip -l artifacts/api.zip | grep '\\' && exit 1 || echo "ZIP paths OK"
 
       - name: Azure login
         uses: azure/login@v1
