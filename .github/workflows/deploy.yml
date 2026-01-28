@@ -61,7 +61,7 @@ jobs:
       - name: Deploy infrastructure
         shell: bash
         env:
-          DEPLOYMENT_PRINCIPAL_OBJECT_ID: ${{ steps.login.outputs.principalId }}
+          DEPLOYMENT_PRINCIPAL_OBJECT_ID: ${{ secrets.AZURE_CLIENT_OBJECT_ID }}
         run: |
           set -euo pipefail
           az group create -n $AZURE_RESOURCE_GROUP -l $AZURE_LOCATION
@@ -85,7 +85,7 @@ jobs:
         run: |
           az keyvault set-policy \
             --name ${{ steps.kv.outputs.keyvault }} \
-            --object-id ${{ steps.login.outputs.principalId }} \
+            --object-id $AZURE_CLIENT_OBJECT_ID \
             --secret-permissions get list
       - name: Debug prisma config presence
         run: |
