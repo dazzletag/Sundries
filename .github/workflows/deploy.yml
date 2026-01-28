@@ -48,6 +48,10 @@ jobs:
           zip -r ../api.zip .
           cd ../..
 
+      - name: Show API artifact size
+        run: |
+          ls -lh artifacts/api.zip
+
       - name: Azure login
         uses: azure/login@v1
         with:
@@ -143,12 +147,16 @@ jobs:
             -o tsv)
           echo "artifact-url=https://$AZURE_STORAGE_ACCOUNT.blob.core.windows.net/$AZURE_STORAGE_CONTAINER/sundries-api.zip?$SAS_TOKEN" >> $GITHUB_OUTPUT
 
-      - name: Deploy API from storage
+      - name: Deploy API
         run: |
-          az webapp deployment source config-zip \
+          az webapp deploy \
             --resource-group $AZURE_RESOURCE_GROUP \
             --name sundries-api-prod \
-            --src "${{ steps.upload-artifact.outputs.artifact-url }}"
+            --type zip \
+            --src-path artifacts/api.zip \
+            --target-path /home/site/wwwroot \
+            --clean true \
+            --restart true
 
       - name: Smoke test API
         run: |
