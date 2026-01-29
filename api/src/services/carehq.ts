@@ -88,13 +88,26 @@ const fetchAllPages = async <T>(
   const items: T[] = [];
   let page = 1;
   while (true) {
-    const response = await client.request("GET", resource, {
-      params: {
-        ...params,
-        per_page: 100,
-        page
+    let response: CareHqPage<T> | undefined;
+    try {
+      response = await client.request("GET", resource, {
+        params: {
+          ...params,
+          per_page: 100,
+          page
+        }
+      });
+    } catch (error) {
+      const status =
+        typeof error === "object" && error !== null
+          ? (error as { status?: number; response?: { status?: number } }).status ??
+            (error as { response?: { status?: number } }).response?.status
+          : undefined;
+      if (status === 404) {
+        break;
       }
-    });
+      throw error;
+    }
     const pageItems = response?.items ?? [];
     if (!pageItems.length) break;
     items.push(...pageItems);
