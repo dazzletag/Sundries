@@ -14,6 +14,7 @@ model CareHome {
   region    String  @default("UK South")
   isActive  Boolean  @default(true)
   residents Resident[]
+  careHqResidents CareHqResident[]
   visits    Visit[]
   invoices  Invoice[]
   createdAt DateTime @default(now())
