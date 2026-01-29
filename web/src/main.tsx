@@ -24,9 +24,10 @@ export const msalInstance = new PublicClientApplication({
   }
 });
 
-msalInstance
-  .handleRedirectPromise()
-  .then((response) => {
+const startApp = async () => {
+  try {
+    await msalInstance.initialize();
+    const response = await msalInstance.handleRedirectPromise();
     if (response?.account) {
       msalInstance.setActiveAccount(response.account);
     } else {
@@ -35,18 +36,20 @@ msalInstance
         msalInstance.setActiveAccount(accounts[0]);
       }
     }
-  })
-  .catch((error) => {
+  } catch (error) {
     console.error("MSAL redirect handling failed", error);
-  });
+  }
 
-ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
-  <React.StrictMode>
-    <MsalProvider instance={msalInstance}>
-      <App />
-    </MsalProvider>
-  </React.StrictMode>
-);
+  ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
+    <React.StrictMode>
+      <MsalProvider instance={msalInstance}>
+        <App />
+      </MsalProvider>
+    </React.StrictMode>
+  );
+};
+
+void startApp();
 
 
 
