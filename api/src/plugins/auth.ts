@@ -87,16 +87,30 @@ const authPlugin = fp(async (fastify: FastifyInstance) => {
       throw fastify.httpErrors.unauthorized("Unknown JWK kid");
     }
 
-    const { payload } = JWT.verify(token, JWK.asKey(jwk), {
+    const { payload: rawPayload } = JWT.verify(token, JWK.asKey(jwk), {
       issuer: [issuer, legacyIssuer],
       audience
     });
 
-    if (!payload || typeof payload !== "object") {
+    let payload: JWTPayload | undefined;
+    if (rawPayload && typeof rawPayload === "object") {
+      payload = rawPayload as JWTPayload;
+    } else if (typeof rawPayload === "string") {
+      try {
+        const parsed = JSON.parse(rawPayload) as JWTPayload;
+        if (parsed && typeof parsed === "object") {
+          payload = parsed;
+        }
+      } catch {
+        payload = undefined;
+      }
+    }
+
+    if (!payload) {
       throw fastify.httpErrors.unauthorized("Invalid token payload");
     }
 
-    const roles = extractRoles(payload as JWTPayload);
+    const roles = extractRoles(payload);
     const upn = typeof payload.upn === "string" ? payload.upn : undefined;
     const preferredUsername = typeof payload.preferred_username === "string" ? payload.preferred_username : undefined;
 
