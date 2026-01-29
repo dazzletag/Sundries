@@ -253,8 +253,24 @@ jobs:
           echo "Fetching static web app content from $STATIC_WEBAPP_URL"
           html=$(mktemp)
           curl --silent --show-error --fail "$STATIC_WEBAPP_URL" -o "$html"
-          if ! grep -q "https://sundries-api-prod.azurewebsites.net" "$html"; then
+          api_host="https://sundries-api-prod.azurewebsites.net"
+          if grep -q "$api_host" "$html"; then
+            echo "Static web app is reachable and references the API over HTTPS"
+            exit 0
+          fi
+
+          echo "API hostname not found in HTML; checking JS bundles..."
+          found=0
+          while IFS= read -r asset; do
+            asset_url="${STATIC_WEBAPP_URL%/}${asset}"
+            if curl --silent --show-error --fail "$asset_url" | grep -q "$api_host"; then
+              found=1
+              break
+            fi
+          done < <(grep -oE 'src="/assets/[^"]+\.js"' "$html" | sed 's/src="//;s/"$//')
+
+          if [ "$found" -ne 1 ]; then
             echo "Static web app did not reference the API hostname over HTTPS" >&2
             exit 1
           fi
-          echo "Static web app is reachable and references the API over HTTPS"
+          echo "Static web app is reachable and references the API over HTTPS (via JS bundle)"
