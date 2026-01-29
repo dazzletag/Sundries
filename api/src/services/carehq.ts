@@ -103,7 +103,8 @@ const fetchAllPages = async <T>(
           ? (error as { status?: number; response?: { status?: number } }).status ??
             (error as { response?: { status?: number } }).response?.status
           : undefined;
-      if (status === 404) {
+      const message = typeof error === "object" && error !== null ? String((error as { message?: string }).message ?? "") : String(error);
+      if (status === 404 || message.includes("404")) {
         break;
       }
       throw error;
