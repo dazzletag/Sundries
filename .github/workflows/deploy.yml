@@ -85,6 +85,7 @@ jobs:
 
       - name: Extract key vault name
         id: kv
+        if: github.event_name == 'workflow_dispatch'
         run: |
           KEY_VAULT_NAME=$(jq -r '.keyVaultName.value' /tmp/deployment-outputs.json)
           echo "keyvault=$KEY_VAULT_NAME" >> $GITHUB_OUTPUT
@@ -92,10 +93,15 @@ jobs:
       - name: Save deployment outputs
         id: deployment-outputs
         run: |
-          API_BASE_URL=$(jq -r '.apiBaseUri.value' /tmp/deployment-outputs.json)
+          if [ -f /tmp/deployment-outputs.json ]; then
+            API_BASE_URL=$(jq -r '.apiBaseUri.value' /tmp/deployment-outputs.json)
+          else
+            API_BASE_URL="https://sundries-api-prod.azurewebsites.net"
+          fi
           echo "api-base-url=$API_BASE_URL" >> $GITHUB_OUTPUT
 
       - name: Grant pipeline service principal access to Key Vault
+        if: github.event_name == 'workflow_dispatch'
         run: |
           az keyvault set-policy \
             --name ${{ steps.kv.outputs.keyvault }} \
@@ -108,6 +114,7 @@ jobs:
           find . -name "prisma.config.*" -print
 
       - name: Run Prisma migrations
+        if: github.event_name == 'workflow_dispatch'
         env:
           PRISMA_REQUIRE_DATABASE_URL: "true"
         run: |
