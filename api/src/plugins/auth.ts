@@ -23,6 +23,7 @@ if (!tenantId || !audience) {
 }
 
 const issuer = `https://login.microsoftonline.com/${tenantId}/v2.0`;
+const legacyIssuer = `https://sts.windows.net/${tenantId}/`;
 const jwksUrl = new URL(`https://login.microsoftonline.com/${tenantId}/discovery/v2.0/keys`);
 
 const extractRoles = (payload: JWTPayload): string[] => {
@@ -86,7 +87,7 @@ const authPlugin = fp(async (fastify: FastifyInstance) => {
     }
 
     const { payload } = JWT.verify(token, JWK.asKey(jwk), {
-      issuer,
+      issuer: [issuer, legacyIssuer],
       audience
     });
 
