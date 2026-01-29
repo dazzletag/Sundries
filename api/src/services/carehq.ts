@@ -48,11 +48,33 @@ const createClient = async () => {
   const apiKey = getEnv("CAREHQ_API_KEY");
   const apiSecret = getEnv("CAREHQ_API_SECRET");
   // Force a real dynamic import so CJS output doesn't require() an ESM-only package.
-  const { APIClient } = (await new Function('return import("@carehq/carehq-js")')()) as {
-    APIClient: new (accountId: string, apiKey: string, apiSecret: string, opts?: { timeoutMs?: number }) => {
-      request: (method: "GET", path: string, options?: { params?: Record<string, unknown> }) => Promise<CareHqPage<any>>;
+  const loadModule = async (specifier: string) => {
+    return (await new Function('s', 'return import(s)')(specifier)) as {
+      APIClient: new (
+        accountId: string,
+        apiKey: string,
+        apiSecret: string,
+        opts?: { timeoutMs?: number }
+      ) => {
+        request: (method: "GET", path: string, options?: { params?: Record<string, unknown> }) => Promise<CareHqPage<any>>;
+      };
     };
   };
+
+  let APIClient: new (
+    accountId: string,
+    apiKey: string,
+    apiSecret: string,
+    opts?: { timeoutMs?: number }
+  ) => {
+    request: (method: "GET", path: string, options?: { params?: Record<string, unknown> }) => Promise<CareHqPage<any>>;
+  };
+
+  try {
+    ({ APIClient } = await loadModule("@carehq/carehq-js"));
+  } catch (error) {
+    ({ APIClient } = await loadModule("@carehq/carehq-js/dist/index.js"));
+  }
   return new APIClient(accountId, apiKey, apiSecret, { timeoutMs: 30_000 });
 };
 
