@@ -117,6 +117,11 @@ const authPlugin = fp(async (fastify: FastifyInstance) => {
     }
 
     if (!payload) {
+      const payloadType = rawPayload === null ? "null" : typeof rawPayload;
+      const payloadCtor = rawPayload && typeof rawPayload === "object" ? (rawPayload as object).constructor?.name : undefined;
+      const isBuffer = typeof Buffer !== "undefined" && Buffer.isBuffer(rawPayload);
+      const isView = ArrayBuffer.isView(rawPayload);
+      fastify.log.warn({ payloadType, payloadCtor, isBuffer, isView }, "Invalid JWT payload type");
       throw fastify.httpErrors.unauthorized("Invalid token payload");
     }
 
