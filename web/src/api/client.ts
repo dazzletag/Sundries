@@ -13,6 +13,8 @@ const resolveScopes = () => {
   return [];
 };
 
+let redirectInProgress = false;
+
 export const createApiClient = (instance: IPublicClientApplication): AxiosInstance => {
   const client = axios.create({
     baseURL: baseUrl,
@@ -35,7 +37,10 @@ export const createApiClient = (instance: IPublicClientApplication): AxiosInstan
       config.headers.Authorization = `Bearer ${tokenResponse.accessToken}`;
     } catch (error) {
       if (error instanceof InteractionRequiredAuthError) {
-        await instance.acquireTokenRedirect({ scopes, account });
+        if (!redirectInProgress) {
+          redirectInProgress = true;
+          await instance.acquireTokenRedirect({ scopes, account });
+        }
       }
       throw error;
     }

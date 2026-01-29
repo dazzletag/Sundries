@@ -24,6 +24,22 @@ export const msalInstance = new PublicClientApplication({
   }
 });
 
+msalInstance
+  .handleRedirectPromise()
+  .then((response) => {
+    if (response?.account) {
+      msalInstance.setActiveAccount(response.account);
+    } else {
+      const accounts = msalInstance.getAllAccounts();
+      if (accounts.length) {
+        msalInstance.setActiveAccount(accounts[0]);
+      }
+    }
+  })
+  .catch((error) => {
+    console.error("MSAL redirect handling failed", error);
+  });
+
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
     <MsalProvider instance={msalInstance}>
