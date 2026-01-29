@@ -20,7 +20,7 @@ const ResidentsPage = () => {
   useEffect(() => {
     let active = true;
     api
-      .get("/residents")
+      .get("/carehq/residents")
       .then((response) => {
         if (active) {
           setResidents(response.data ?? []);
@@ -43,19 +43,21 @@ const ResidentsPage = () => {
         <Table>
           <TableHead>
             <TableRow>
-              <TableCell>Name</TableCell>
               <TableCell>Care Home</TableCell>
-              <TableCell>DOB</TableCell>
+              <TableCell>Room Number</TableCell>
+              <TableCell>Full Name</TableCell>
+              <TableCell>Account Code</TableCell>
               <TableCell>Status</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {residents.map((resident) => (
-              <TableRow key={resident.id} hover>
-                <TableCell>{`${resident.firstName} ${resident.lastName}`}</TableCell>
+              <TableRow key={resident.careHqRoomId ?? resident.id} hover>
                 <TableCell>{resident.careHome?.name ?? "?"}</TableCell>
-                <TableCell>{resident.dob ? new Date(resident.dob).toLocaleDateString() : "?"}</TableCell>
-                <TableCell>{resident.isActive ? "Active" : "Inactive"}</TableCell>
+                <TableCell>{resident.roomNumber ?? "?"}</TableCell>
+                <TableCell>{resident.fullName ?? "*VACANT*"}</TableCell>
+                <TableCell>{resident.accountCode ?? "-"}</TableCell>
+                <TableCell>{resident.isVacant ? "Vacant" : "Occupied"}</TableCell>
               </TableRow>
             ))}
           </TableBody>

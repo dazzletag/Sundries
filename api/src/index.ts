@@ -1,5 +1,6 @@
 ﻿import Fastify from "fastify";
 import cors from "@fastify/cors";
+import sensible from "@fastify/sensible";
 import dotenv from "dotenv";
 import prismaPlugin from "./plugins/prisma";
 import authPlugin from "./plugins/auth";
@@ -14,6 +15,7 @@ const server = Fastify({
 });
 
 server.register(cors, { origin: true });
+server.register(sensible);
 server.register(prismaPlugin);
 server.register(authPlugin);
 server.register(registerRoutes);

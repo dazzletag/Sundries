@@ -2,6 +2,7 @@
 import careHomeRoutes from "./carehomes";
 import supplierRoutes from "./suppliers";
 import residentRoutes from "./residents";
+import careHqRoutes from "./carehq";
 import consentRoutes from "./consents";
 import visitRoutes from "./visits";
 import providerRoutes from "./providers";
@@ -42,6 +43,7 @@ export default async function registerRoutes(fastify: FastifyInstance) {
   fastify.register(careHomeRoutes, { prefix: "/carehomes" });
   fastify.register(supplierRoutes, { prefix: "/suppliers" });
   fastify.register(residentRoutes, { prefix: "/residents" });
+  fastify.register(careHqRoutes, { prefix: "/carehq" });
   fastify.register(consentRoutes);
   fastify.register(visitRoutes);
   fastify.register(providerRoutes);

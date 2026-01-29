@@ -154,6 +154,18 @@ resource apiApp 'Microsoft.Web/sites@2024-11-01' = {
           value: format('@Microsoft.KeyVault(SecretUri={0})', databaseSecret.properties.secretUriWithVersion)
         }
         {
+          name: 'CAREHQ_ACCOUNT_ID'
+          value: format('@Microsoft.KeyVault(SecretUri={0})', reference(resourceId('Microsoft.KeyVault/vaults/secrets', keyVault.name, 'CAREHQ_ACCOUNT_ID'), '2024-11-01').secretUriWithVersion)
+        }
+        {
+          name: 'CAREHQ_API_KEY'
+          value: format('@Microsoft.KeyVault(SecretUri={0})', reference(resourceId('Microsoft.KeyVault/vaults/secrets', keyVault.name, 'CAREHQ_API_KEY'), '2024-11-01').secretUriWithVersion)
+        }
+        {
+          name: 'CAREHQ_API_SECRET'
+          value: format('@Microsoft.KeyVault(SecretUri={0})', reference(resourceId('Microsoft.KeyVault/vaults/secrets', keyVault.name, 'CAREHQ_API_SECRET'), '2024-11-01').secretUriWithVersion)
+        }
+        {
           name: 'TENANT_ID'
           value: aadTenantId
         }

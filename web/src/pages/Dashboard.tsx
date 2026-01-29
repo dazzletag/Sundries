@@ -31,7 +31,7 @@ const DashboardPage = () => {
       setLoading(true);
       try {
         const [residents, visits, invoices] = await Promise.all([
-          api.get("/residents"),
+          api.get("/carehq/residents"),
           api.get("/visits", { params: { status: "Confirmed", from: new Date().toISOString(), to: new Date().toISOString() } }),
           api.get("/invoices")
         ]);

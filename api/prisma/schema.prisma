@@ -5,7 +5,7 @@ datasource db {
 
 generator client {
   provider = "prisma-client-js"
-  binaryTargets = ["native", "debian-openssl-3.0.x"]
+  binaryTargets = ["native", "debian-openssl-1.1.x", "debian-openssl-3.0.x"]
 }
 
 model CareHome {
@@ -47,6 +47,22 @@ model Resident {
   visitItems VisitItem[]
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+}
+
+model CareHqResident {
+  id              String   @id @default(uuid())
+  careHomeId      String
+  careHome        CareHome @relation(fields: [careHomeId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  careHqLocationId String
+  careHqRoomId    String   @unique
+  roomNumber      String
+  fullName        String?
+  accountCode     String?
+  serviceUserId   String?
+  isVacant        Boolean  @default(false)
+  lastSyncedAt    DateTime @default(now())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }
 
 model Consent {

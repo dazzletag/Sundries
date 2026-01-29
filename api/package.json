@@ -17,7 +17,9 @@
   "license": "MIT",
   "type": "commonjs",
   "dependencies": {
+    "@carehq/carehq-js": "^1.0.0",
     "@fastify/cors": "^11.2.0",
+    "@fastify/sensible": "^6.0.4",
     "@prisma/client": "^6.19.2",
     "dotenv": "^17.2.3",
     "fastify": "^5.7.1",
