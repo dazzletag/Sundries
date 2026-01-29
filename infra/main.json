@@ -196,15 +196,15 @@
             },
             {
               "name": "CAREHQ_ACCOUNT_ID",
-              "value": "[format('@Microsoft.KeyVault(SecretUri={0})', reference(resourceId('Microsoft.KeyVault/vaults/secrets', variables('keyVaultName'), 'CAREHQ_ACCOUNT_ID'), '2024-11-01').secretUriWithVersion)]"
+              "value": "[format('@Microsoft.KeyVault(SecretUri={0})', reference(resourceId('Microsoft.KeyVault/vaults/secrets', variables('keyVaultName'), 'CAREHQ-ACCOUNT-ID'), '2024-11-01').secretUriWithVersion)]"
             },
             {
               "name": "CAREHQ_API_KEY",
-              "value": "[format('@Microsoft.KeyVault(SecretUri={0})', reference(resourceId('Microsoft.KeyVault/vaults/secrets', variables('keyVaultName'), 'CAREHQ_API_KEY'), '2024-11-01').secretUriWithVersion)]"
+              "value": "[format('@Microsoft.KeyVault(SecretUri={0})', reference(resourceId('Microsoft.KeyVault/vaults/secrets', variables('keyVaultName'), 'CAREHQ-API-KEY'), '2024-11-01').secretUriWithVersion)]"
             },
             {
               "name": "CAREHQ_API_SECRET",
-              "value": "[format('@Microsoft.KeyVault(SecretUri={0})', reference(resourceId('Microsoft.KeyVault/vaults/secrets', variables('keyVaultName'), 'CAREHQ_API_SECRET'), '2024-11-01').secretUriWithVersion)]"
+              "value": "[format('@Microsoft.KeyVault(SecretUri={0})', reference(resourceId('Microsoft.KeyVault/vaults/secrets', variables('keyVaultName'), 'CAREHQ-API-SECRET'), '2024-11-01').secretUriWithVersion)]"
             },
             {
               "name": "TENANT_ID",
