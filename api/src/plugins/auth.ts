@@ -23,7 +23,7 @@ if (!tenantId || !audience) {
 }
 
 const issuer = `https://login.microsoftonline.com/${tenantId}/v2.0`;
-const jwksUrl = new URL(`${issuer}/discovery/v2.0/keys`);
+const jwksUrl = new URL(`https://login.microsoftonline.com/${tenantId}/discovery/v2.0/keys`);
 
 const extractRoles = (payload: JWTPayload): string[] => {
   const raw = payload.roles ?? payload.groups ?? [];
