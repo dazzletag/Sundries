@@ -53,7 +53,7 @@ const ResidentsPage = () => {
           <TableBody>
             {residents.map((resident) => (
               <TableRow key={resident.careHqRoomId ?? resident.id} hover>
-                <TableCell>{resident.careHome?.name ?? "?"}</TableCell>
+                <TableCell>{resident.careHomeName ?? "?"}</TableCell>
                 <TableCell>{resident.roomNumber ?? "?"}</TableCell>
                 <TableCell>{resident.fullName ?? "*VACANT*"}</TableCell>
                 <TableCell>{resident.accountCode ?? "-"}</TableCell>

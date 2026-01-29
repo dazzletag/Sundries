@@ -14,7 +14,6 @@ model CareHome {
   region    String  @default("UK South")
   isActive  Boolean  @default(true)
   residents Resident[]
-  careHqResidents CareHqResident[]
   visits    Visit[]
   invoices  Invoice[]
   createdAt DateTime @default(now())
@@ -52,8 +51,7 @@ model Resident {
 
 model CareHqResident {
   id              String   @id @default(uuid())
-  careHomeId      String
-  careHome        CareHome @relation(fields: [careHomeId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  careHomeName    String
   careHqLocationId String
   careHqRoomId    String   @unique
   roomNumber      String

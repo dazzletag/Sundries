@@ -1,6 +1,6 @@
 CREATE TABLE [dbo].[CareHqResident] (
     [id] NVARCHAR(191) NOT NULL,
-    [careHomeId] NVARCHAR(191) NOT NULL,
+    [careHomeName] NVARCHAR(191) NOT NULL,
     [careHqLocationId] NVARCHAR(191) NOT NULL,
     [careHqRoomId] NVARCHAR(191) NOT NULL,
     [roomNumber] NVARCHAR(191) NOT NULL,
@@ -15,9 +15,3 @@ CREATE TABLE [dbo].[CareHqResident] (
 );
 
 CREATE UNIQUE INDEX [CareHqResident_careHqRoomId_key] ON [dbo].[CareHqResident]([careHqRoomId]);
-
-ALTER TABLE [dbo].[CareHqResident]
-ADD CONSTRAINT [CareHqResident_careHomeId_fkey]
-FOREIGN KEY ([careHomeId]) REFERENCES [dbo].[CareHome]([id])
-ON DELETE NO ACTION
-ON UPDATE NO ACTION;
