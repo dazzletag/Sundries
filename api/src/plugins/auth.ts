@@ -87,10 +87,11 @@ const authPlugin = fp(async (fastify: FastifyInstance) => {
       throw fastify.httpErrors.unauthorized("Unknown JWK kid");
     }
 
-    const { payload: rawPayload } = JWT.verify(token, JWK.asKey(jwk), {
+    const verified = JWT.verify(token, JWK.asKey(jwk), {
       issuer: [issuer, legacyIssuer],
       audience
     });
+    const rawPayload = (verified as { payload?: unknown }).payload ?? verified;
 
     let payload: JWTPayload | undefined;
     if (rawPayload && typeof rawPayload === "object" && !ArrayBuffer.isView(rawPayload)) {
