@@ -26,7 +26,8 @@ const issuer = `https://login.microsoftonline.com/${tenantId}/v2.0`;
 const legacyIssuer = `https://sts.windows.net/${tenantId}/`;
 const jwksUrl = new URL(`https://login.microsoftonline.com/${tenantId}/discovery/v2.0/keys`);
 
-const extractRoles = (payload: JWTPayload): string[] => {
+const extractRoles = (payload?: JWTPayload): string[] => {
+  if (!payload) return [];
   const raw = payload.roles ?? payload.groups ?? [];
   return Array.isArray(raw) ? raw.map((role) => String(role)) : [String(raw)];
 };
@@ -91,7 +92,11 @@ const authPlugin = fp(async (fastify: FastifyInstance) => {
       audience
     });
 
-    const roles = extractRoles(payload);
+    if (!payload || typeof payload !== "object") {
+      throw fastify.httpErrors.unauthorized("Invalid token payload");
+    }
+
+    const roles = extractRoles(payload as JWTPayload);
     const upn = typeof payload.upn === "string" ? payload.upn : undefined;
     const preferredUsername = typeof payload.preferred_username === "string" ? payload.preferred_username : undefined;
 
