@@ -67,6 +67,7 @@ jobs:
 
       - name: Deploy infrastructure
         shell: bash
+        if: github.event_name == 'workflow_dispatch'
         env:
           DEPLOYMENT_OUTPUT_DEST: /tmp/deployment-outputs.json
         run: |
