@@ -156,15 +156,35 @@ jobs:
           echo "artifact-url=https://$AZURE_STORAGE_ACCOUNT.blob.core.windows.net/$AZURE_STORAGE_CONTAINER/sundries-api.zip?$SAS_TOKEN" >> $GITHUB_OUTPUT
 
       - name: Deploy API
+        shell: bash
         run: |
-          az webapp deploy \
+          set -euo pipefail
+          if az webapp deploy \
             --resource-group $AZURE_RESOURCE_GROUP \
             --name sundries-api-prod \
             --type zip \
             --src-path artifacts/api.zip \
             --target-path /home/site/wwwroot \
             --clean true \
-            --restart true
+            --restart true; then
+            exit 0
+          fi
+
+          echo "az webapp deploy returned failure; verifying API health before failing..."
+          success=0
+          for attempt in {1..10}; do
+            if curl --fail https://sundries-api-prod.azurewebsites.net/health; then
+              success=1
+              break
+            fi
+            echo "Attempt $attempt failed; retrying in 10s..."
+            sleep 10
+          done
+          if [ "$success" -ne 1 ]; then
+            echo "API health endpoint did not become healthy after deployment failure" >&2
+            exit 1
+          fi
+          echo "API is healthy; continuing despite deploy timeout."
 
       - name: Smoke test API
         run: |
