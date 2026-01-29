@@ -1,7 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
-import { PublicClientApplication } from "@azure/msal-browser";
+import { EventType, PublicClientApplication } from "@azure/msal-browser";
 import { MsalProvider } from "@azure/msal-react";
 import "./index.css";
 
@@ -21,6 +21,15 @@ export const msalInstance = new PublicClientApplication({
   },
   cache: {
     cacheLocation: "localStorage"
+  }
+});
+
+msalInstance.addEventCallback((event) => {
+  if (event.eventType === EventType.LOGIN_SUCCESS && event.payload) {
+    const account = (event.payload as { account?: { homeAccountId?: string } }).account;
+    if (account) {
+      msalInstance.setActiveAccount(account);
+    }
   }
 });
 

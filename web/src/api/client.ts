@@ -2,16 +2,10 @@ import axios from "axios";
 import type { AxiosInstance } from "axios";
 import { InteractionRequiredAuthError } from "@azure/msal-browser";
 import type { IPublicClientApplication } from "@azure/msal-browser";
+import { getApiScopes } from "./scopes";
 
 const baseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:4000";
-const cachedScopes = (import.meta.env.VITE_API_SCOPES ?? "").split(",").map((scope: string) => scope.trim()).filter(Boolean);
-const audience = import.meta.env.VITE_API_AUDIENCE?.trim();
-
-const resolveScopes = () => {
-  if (cachedScopes.length) return cachedScopes;
-  if (audience) return [audience];
-  return [];
-};
+const resolveScopes = () => getApiScopes();
 
 let redirectInProgress = false;
 

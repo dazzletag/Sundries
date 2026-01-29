@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { useMsal } from "@azure/msal-react";
 import { NavLink } from "react-router-dom";
+import { getApiScopes } from "../api/scopes";
 import {
   AppBar,
   Box,
@@ -40,11 +41,11 @@ interface LayoutProps {
 const Layout = ({ children }: LayoutProps) => {
   const { instance, accounts } = useMsal();
   const account = accounts[0];
-  const scopes = (import.meta.env.VITE_API_SCOPES ?? "").split(",").map((scope: string) => scope.trim()).filter(Boolean);
+  const scopes = getApiScopes();
 
   const handleLogin = () => {
     instance.loginRedirect({
-      scopes: scopes.length ? scopes : [import.meta.env.VITE_API_AUDIENCE ?? ""],
+      scopes,
       redirectUri: import.meta.env.VITE_AAD_REDIRECT_URI ?? window.location.origin
     });
   };
