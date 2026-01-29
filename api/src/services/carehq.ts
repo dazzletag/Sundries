@@ -50,7 +50,7 @@ const createClient = async () => {
   // Force a real dynamic import so CJS output doesn't require() an ESM-only package.
   const { APIClient } = (await new Function('return import("@carehq/carehq-js")')()) as {
     APIClient: new (accountId: string, apiKey: string, apiSecret: string, opts?: { timeoutMs?: number }) => {
-      request: (method: "GET", path: string, options?: { params?: Record<string, unknown> }) => Promise<CareHqPage<unknown>>;
+      request: (method: "GET", path: string, options?: { params?: Record<string, unknown> }) => Promise<CareHqPage<any>>;
     };
   };
   return new APIClient(accountId, apiKey, apiSecret, { timeoutMs: 30_000 });
