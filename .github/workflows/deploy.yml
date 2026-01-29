@@ -198,6 +198,7 @@ jobs:
       VITE_AAD_CLIENT_ID: ${{ secrets.WEB_CLIENT_ID }}
       VITE_AAD_TENANT_ID: ${{ secrets.AAD_TENANT_ID }}
       VITE_API_AUDIENCE: ${{ secrets.API_AUDIENCE }}
+      VITE_API_SCOPES: ${{ secrets.VITE_API_SCOPES }}
     steps:
       - uses: actions/checkout@v4
 
