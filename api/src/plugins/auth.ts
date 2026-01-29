@@ -93,11 +93,21 @@ const authPlugin = fp(async (fastify: FastifyInstance) => {
     });
 
     let payload: JWTPayload | undefined;
-    if (rawPayload && typeof rawPayload === "object") {
+    if (rawPayload && typeof rawPayload === "object" && !ArrayBuffer.isView(rawPayload)) {
       payload = rawPayload as JWTPayload;
     } else if (typeof rawPayload === "string") {
       try {
         const parsed = JSON.parse(rawPayload) as JWTPayload;
+        if (parsed && typeof parsed === "object") {
+          payload = parsed;
+        }
+      } catch {
+        payload = undefined;
+      }
+    } else if (ArrayBuffer.isView(rawPayload)) {
+      try {
+        const text = new TextDecoder().decode(rawPayload as Uint8Array);
+        const parsed = JSON.parse(text) as JWTPayload;
         if (parsed && typeof parsed === "object") {
           payload = parsed;
         }
