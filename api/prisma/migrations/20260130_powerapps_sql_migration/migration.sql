@@ -67,7 +67,7 @@ CREATE TABLE [dbo].[PriceItem] (
 CREATE TABLE [dbo].[ResidentConsent] (
     [id] NVARCHAR(1000) NOT NULL,
     [careHomeId] NVARCHAR(1000) NOT NULL,
-    [careHqResidentId] NVARCHAR(1000),
+    [careHqResidentId] NVARCHAR(191),
     [roomNumber] NVARCHAR(1000),
     [fullName] NVARCHAR(1000),
     [accountCode] NVARCHAR(1000),
@@ -103,7 +103,7 @@ CREATE TABLE [dbo].[ConsentAttachment] (
 CREATE TABLE [dbo].[SaleItem] (
     [id] NVARCHAR(1000) NOT NULL,
     [careHomeId] NVARCHAR(1000) NOT NULL,
-    [careHqResidentId] NVARCHAR(1000) NOT NULL,
+    [careHqResidentId] NVARCHAR(191) NOT NULL,
     [vendorId] NVARCHAR(1000) NOT NULL,
     [priceItemId] NVARCHAR(1000),
     [description] NVARCHAR(1000) NOT NULL,
@@ -135,7 +135,7 @@ CREATE TABLE [dbo].[Newspaper] (
 CREATE TABLE [dbo].[NewspaperOrder] (
     [id] NVARCHAR(1000) NOT NULL,
     [careHomeId] NVARCHAR(1000) NOT NULL,
-    [careHqResidentId] NVARCHAR(1000) NOT NULL,
+    [careHqResidentId] NVARCHAR(191) NOT NULL,
     [newspaperId] NVARCHAR(1000) NOT NULL,
     [itemTitle] NVARCHAR(1000) NOT NULL,
     [price] DECIMAL(10,2) NOT NULL,

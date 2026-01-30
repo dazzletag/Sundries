@@ -55,15 +55,15 @@ model Resident {
 }
 
 model CareHqResident {
-  id              String   @id @default(uuid())
+  id              String   @id @default(uuid()) @db.NVarChar(191)
   careHomeId      String?
   careHomeName    String
   careHqLocationId String
-  careHqRoomId    String   @unique
-  roomNumber      String
-  fullName        String?
-  accountCode     String?
-  serviceUserId   String?
+  careHqRoomId    String   @unique @db.NVarChar(191)
+  roomNumber      String   @db.NVarChar(191)
+  fullName        String?  @db.NVarChar(191)
+  accountCode     String?  @db.NVarChar(191)
+  serviceUserId   String?  @db.NVarChar(191)
   isVacant        Boolean  @default(false)
   lastSyncedAt    DateTime @default(now())
   createdAt       DateTime @default(now())
@@ -134,11 +134,11 @@ model PriceItem {
 model ResidentConsent {
   id                   String   @id @default(uuid())
   careHomeId           String
-  careHqResidentId     String?
-  roomNumber           String?
-  fullName             String?
-  accountCode          String?
-  serviceUserId        String?
+  careHqResidentId     String? @db.NVarChar(191)
+  roomNumber           String? @db.NVarChar(191)
+  fullName             String? @db.NVarChar(191)
+  accountCode          String? @db.NVarChar(191)
+  serviceUserId        String? @db.NVarChar(191)
   sundryConsentReceived Boolean @default(false)
   newspapersConsent    Boolean @default(false)
   chiropodyConsent     Boolean @default(false)
@@ -155,8 +155,9 @@ model ResidentConsent {
   careHqResident        CareHqResident? @relation(fields: [careHqResidentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   attachments          ConsentAttachment[]
 
-  @@unique([careHqResidentId])
+  @@unique([careHomeId, accountCode])
   @@index([careHomeId])
+  @@index([careHqResidentId])
 }
 
 model ConsentAttachment {
@@ -174,7 +175,7 @@ model ConsentAttachment {
 model SaleItem {
   id              String   @id @default(uuid())
   careHomeId      String
-  careHqResidentId String
+  careHqResidentId String @db.NVarChar(191)
   vendorId        String
   priceItemId     String?
   description     String
@@ -212,7 +213,7 @@ model Newspaper {
 model NewspaperOrder {
   id              String   @id @default(uuid())
   careHomeId      String
-  careHqResidentId String
+  careHqResidentId String @db.NVarChar(191)
   newspaperId     String
   itemTitle       String
   price           Decimal  @db.Decimal(10, 2)
