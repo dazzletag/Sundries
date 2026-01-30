@@ -22,7 +22,7 @@ type ConsentRow = {
   "Shop Note"?: string;
   Created?: Date | string;
   Modified?: Date | string;
-  "CurrentResident?"?: boolean;
+  "CurrentResident?"?: boolean | string;
   residentId?: string;
 };
 
@@ -40,6 +40,17 @@ const parseDate = (value?: Date | string) => {
 };
 
 const normalize = (value?: string) => (value ?? "").trim();
+
+const parseCurrentResident = (value?: boolean | string) => {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "string") {
+    const trimmed = value.trim().toLowerCase();
+    if (trimmed === "") return undefined;
+    if (trimmed === "yes" || trimmed === "true" || trimmed === "1") return true;
+    if (trimmed === "no" || trimmed === "false" || trimmed === "0") return false;
+  }
+  return undefined;
+};
 
 type ConflictRecord = {
   key: string;
@@ -206,53 +217,56 @@ const main = async () => {
           continue;
         }
 
-        const result = await prisma.residentConsent.upsert({
-          where: { careHqResidentId: resident.id },
-          create: {
-            careHomeId: careHome.id,
-            careHqResidentId: resident.id,
-            roomNumber: row.RoomNumber ? String(row.RoomNumber) : null,
-            fullName: fullName || null,
-            accountCode,
-            serviceUserId: row.residentId ? String(row.residentId) : null,
-            sundryConsentReceived: Boolean(row.SundryConsentReceived),
-            newspapersConsent: Boolean(row.NewspapersConsent),
-            chiropodyConsent: Boolean(row.ChiropodyConsent),
-            hairdressersConsent: Boolean(row.HairdressersConsent),
-            shopConsent: Boolean(row.ShopConsent),
-            otherConsent: Boolean(row.OtherConsent),
-            chiropodyNote: row["Chiropody Note"] ? String(row["Chiropody Note"]) : null,
-            shopNote: row["Shop Note"] ? String(row["Shop Note"]) : null,
-            comments: row["Hairdressing Note"] ? String(row["Hairdressing Note"]) : null,
-            currentResident: Boolean(row["CurrentResident?"]),
-            createdAt: parseDate(row.Created) ?? new Date(),
-            updatedAt: parseDate(row.Modified) ?? new Date()
-          },
-          update: {
-            careHomeId: careHome.id,
-            roomNumber: row.RoomNumber ? String(row.RoomNumber) : existingByResident?.roomNumber ?? null,
-            fullName: fullName ? fullName : (existingByResident?.fullName ?? null),
-            accountCode,
-            serviceUserId: row.residentId ? String(row.residentId) : existingByResident?.serviceUserId ?? null,
-            sundryConsentReceived: Boolean(row.SundryConsentReceived),
-            newspapersConsent: Boolean(row.NewspapersConsent),
-            chiropodyConsent: Boolean(row.ChiropodyConsent),
-            hairdressersConsent: Boolean(row.HairdressersConsent),
-            shopConsent: Boolean(row.ShopConsent),
-            otherConsent: Boolean(row.OtherConsent),
-            chiropodyNote: row["Chiropody Note"] ? String(row["Chiropody Note"]) : null,
-            shopNote: row["Shop Note"] ? String(row["Shop Note"]) : null,
-            comments: row["Hairdressing Note"] ? String(row["Hairdressing Note"]) : null,
-            currentResident: row["CurrentResident?"] === "" ? existingByResident?.currentResident ?? true : Boolean(row["CurrentResident?"]),
-            createdAt: parseDate(row.Created) ?? existingByResident?.createdAt ?? new Date(),
-            updatedAt: parseDate(row.Modified) ?? new Date()
-          }
-        });
-
-        if (existingByResident) {
-          updated += 1;
-        } else if (result) {
+        if (!existingByResident) {
+          const currentResident = parseCurrentResident(row["CurrentResident?"]);
+          await prisma.residentConsent.create({
+            data: {
+              careHomeId: careHome.id,
+              careHqResidentId: resident.id,
+              roomNumber: row.RoomNumber ? String(row.RoomNumber) : null,
+              fullName: fullName || null,
+              accountCode,
+              serviceUserId: row.residentId ? String(row.residentId) : null,
+              sundryConsentReceived: Boolean(row.SundryConsentReceived),
+              newspapersConsent: Boolean(row.NewspapersConsent),
+              chiropodyConsent: Boolean(row.ChiropodyConsent),
+              hairdressersConsent: Boolean(row.HairdressersConsent),
+              shopConsent: Boolean(row.ShopConsent),
+              otherConsent: Boolean(row.OtherConsent),
+              chiropodyNote: row["Chiropody Note"] ? String(row["Chiropody Note"]) : null,
+              shopNote: row["Shop Note"] ? String(row["Shop Note"]) : null,
+              comments: row["Hairdressing Note"] ? String(row["Hairdressing Note"]) : null,
+              currentResident: currentResident ?? true,
+              createdAt: parseDate(row.Created) ?? new Date(),
+              updatedAt: parseDate(row.Modified) ?? new Date()
+            }
+          });
           created += 1;
+        } else {
+          const currentResident = parseCurrentResident(row["CurrentResident?"]);
+          await prisma.residentConsent.update({
+            where: { id: existingByResident.id },
+            data: {
+              careHomeId: careHome.id,
+              roomNumber: row.RoomNumber ? String(row.RoomNumber) : existingByResident.roomNumber,
+              fullName: fullName ? fullName : existingByResident.fullName,
+              accountCode,
+              serviceUserId: row.residentId ? String(row.residentId) : existingByResident.serviceUserId,
+              sundryConsentReceived: Boolean(row.SundryConsentReceived),
+              newspapersConsent: Boolean(row.NewspapersConsent),
+              chiropodyConsent: Boolean(row.ChiropodyConsent),
+              hairdressersConsent: Boolean(row.HairdressersConsent),
+              shopConsent: Boolean(row.ShopConsent),
+              otherConsent: Boolean(row.OtherConsent),
+              chiropodyNote: row["Chiropody Note"] ? String(row["Chiropody Note"]) : null,
+              shopNote: row["Shop Note"] ? String(row["Shop Note"]) : null,
+              comments: row["Hairdressing Note"] ? String(row["Hairdressing Note"]) : null,
+              currentResident: currentResident ?? existingByResident.currentResident,
+              createdAt: parseDate(row.Created) ?? existingByResident.createdAt,
+              updatedAt: parseDate(row.Modified) ?? new Date()
+            }
+          });
+          updated += 1;
         }
         continue;
       }
@@ -266,6 +280,7 @@ const main = async () => {
           updated += 1;
           continue;
         }
+        const currentResident = parseCurrentResident(row["CurrentResident?"]);
         await prisma.residentConsent.update({
           where: { id: existingByAccount.id },
           data: {
@@ -283,7 +298,7 @@ const main = async () => {
             chiropodyNote: row["Chiropody Note"] ? String(row["Chiropody Note"]) : null,
             shopNote: row["Shop Note"] ? String(row["Shop Note"]) : null,
             comments: row["Hairdressing Note"] ? String(row["Hairdressing Note"]) : null,
-            currentResident: row["CurrentResident?"] === "" ? existingByAccount.currentResident : Boolean(row["CurrentResident?"]),
+            currentResident: currentResident ?? existingByAccount.currentResident,
             createdAt: parseDate(row.Created) ?? existingByAccount.createdAt,
             updatedAt: parseDate(row.Modified) ?? new Date()
           }
@@ -337,6 +352,7 @@ const main = async () => {
               updated += 1;
               continue;
             }
+            const currentResident = parseCurrentResident(row["CurrentResident?"]);
             await prisma.residentConsent.update({
               where: { id: possibleConflict.id },
               data: {
@@ -354,7 +370,7 @@ const main = async () => {
                 chiropodyNote: row["Chiropody Note"] ? String(row["Chiropody Note"]) : null,
                 shopNote: row["Shop Note"] ? String(row["Shop Note"]) : null,
                 comments: row["Hairdressing Note"] ? String(row["Hairdressing Note"]) : null,
-                currentResident: row["CurrentResident?"] === "" ? possibleConflict.currentResident : Boolean(row["CurrentResident?"]),
+                currentResident: currentResident ?? possibleConflict.currentResident,
                 createdAt: parseDate(row.Created) ?? possibleConflict.createdAt,
                 updatedAt: parseDate(row.Modified) ?? new Date()
               }
@@ -370,6 +386,7 @@ const main = async () => {
         continue;
       }
 
+      const currentResident = parseCurrentResident(row["CurrentResident?"]);
       await prisma.residentConsent.create({
         data: {
           careHomeId: careHome.id,
@@ -387,7 +404,7 @@ const main = async () => {
           chiropodyNote: row["Chiropody Note"] ? String(row["Chiropody Note"]) : null,
           shopNote: row["Shop Note"] ? String(row["Shop Note"]) : null,
           comments: row["Hairdressing Note"] ? String(row["Hairdressing Note"]) : null,
-          currentResident: Boolean(row["CurrentResident?"]),
+          currentResident: currentResident ?? true,
           createdAt: parseDate(row.Created) ?? new Date(),
           updatedAt: parseDate(row.Modified) ?? new Date()
         }
