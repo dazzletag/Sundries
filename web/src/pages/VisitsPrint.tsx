@@ -120,17 +120,19 @@ const VisitsPrintPage = () => {
   const handleInvoice = async () => {
     if (!data) return;
     try {
-      const response = await api.post(
-        "/sales/invoice/preview",
-        {
-          careHomeId: data.careHome.id,
-          vendorId: data.vendor.id,
-          from: data.visitedAt.slice(0, 10),
-          to: data.visitedAt.slice(0, 10)
-        },
-        { responseType: "blob" }
-      );
-      const blob = new Blob([response.data], { type: "application/pdf" });
+      const response = await api.post("/sales/invoice", {
+        careHomeId: data.careHome.id,
+        vendorId: data.vendor.id,
+        from: data.visitedAt.slice(0, 10),
+        to: data.visitedAt.slice(0, 10)
+      });
+      const invoiceNo = response.data?.invoiceNo;
+      if (!invoiceNo) {
+        enqueueSnackbar("Invoice was not created", { variant: "error" });
+        return;
+      }
+      const pdf = await api.get(`/invoices/${invoiceNo}/pdf`, { responseType: "blob" });
+      const blob = new Blob([pdf.data], { type: "application/pdf" });
       const url = URL.createObjectURL(blob);
       window.open(url, "_blank", "noopener,noreferrer");
     } catch {
