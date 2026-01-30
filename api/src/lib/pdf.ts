@@ -1,25 +1,30 @@
 ﻿import PDFDocument from "pdfkit";
-import type { CareHome, Invoice, InvoiceItem, Supplier } from "@prisma/client";
+import type { CareHome, Vendor } from "@prisma/client";
 
 export const createInvoicePdf = async (params: {
-  invoice: Invoice;
+  invoiceNo: string;
+  vendor: Vendor;
   careHome: CareHome;
-  supplier: Supplier;
-  items: InvoiceItem[];
+  issuedAt: Date;
+  items: Array<{
+    residentName: string;
+    description: string;
+    price: number;
+  }>;
 }) => {
-  const { invoice, careHome, supplier, items } = params;
+  const { invoiceNo, vendor, careHome, issuedAt, items } = params;
   const doc = new PDFDocument({ size: "A4", margin: 40 });
   doc.font("Helvetica");
 
   doc.fontSize(18).text("Sundries Services Ltd", { align: "left" });
   doc.moveDown(0.5);
-  doc.fontSize(12).text(`Invoice No: ${invoice.invoiceNo}`);
-  doc.text(`Supplier: ${supplier.name}`);
+  doc.fontSize(12).text(`Invoice No: ${invoiceNo}`);
+  doc.text(`Supplier: ${vendor.name} (${vendor.accountRef})`);
+  [vendor.address1, vendor.address2, vendor.address3, vendor.address4, vendor.address5]
+    .filter(Boolean)
+    .forEach((line) => doc.text(String(line)));
   doc.text(`Care Home: ${careHome.name}`);
-  doc.text(`Period: ${invoice.periodStart.toISOString().slice(0, 10)} → ${invoice.periodEnd.toISOString().slice(0, 10)}`);
-  if (invoice.issuedAt) {
-    doc.text(`Issued: ${invoice.issuedAt.toISOString().slice(0, 10)}`);
-  }
+  doc.text(`Issued: ${issuedAt.toISOString().slice(0, 10)}`);
   doc.moveDown(1);
 
   doc.fontSize(14).text("Items", { underline: true });
@@ -27,20 +32,18 @@ export const createInvoicePdf = async (params: {
 
   const tableTop = doc.y;
   doc.fontSize(10);
-  doc.text("Description", 40, tableTop);
-  doc.text("Qty", 220, tableTop);
-  doc.text("Unit", 260, tableTop);
-  doc.text("VAT%", 320, tableTop);
-  doc.text("Line Total", 380, tableTop);
+  doc.text("Resident", 40, tableTop);
+  doc.text("Description", 200, tableTop);
+  doc.text("Price", 450, tableTop);
   doc.moveDown(0.5);
 
   let y = doc.y;
+  let total = 0;
   for (const item of items) {
-    doc.text(item.description, 40, y, { width: 180 });
-    doc.text(String(item.qty), 220, y);
-    doc.text(item.unitPrice.toFixed(2), 260, y);
-    doc.text(item.vatRate.toFixed(2), 320, y);
-    doc.text(item.lineTotal.toFixed(2), 380, y);
+    doc.text(item.residentName, 40, y, { width: 150 });
+    doc.text(item.description, 200, y, { width: 220 });
+    doc.text(item.price.toFixed(2), 450, y, { width: 80 });
+    total += item.price;
     y += 16;
     if (y > 720) {
       doc.addPage();
@@ -49,9 +52,9 @@ export const createInvoicePdf = async (params: {
   }
 
   doc.moveDown(1);
-  doc.fontSize(12).text(`Subtotal: £${invoice.subtotal.toFixed(2)}`);
-  doc.text(`VAT: £${invoice.vatTotal.toFixed(2)}`);
-  doc.text(`Total: £${invoice.total.toFixed(2)}`);
+  doc.fontSize(12).text(`Total: £${total.toFixed(2)}`);
+  doc.moveDown(1);
+  doc.fontSize(10).text("Supplier signature: _____________________________");
 
   doc.end();
 

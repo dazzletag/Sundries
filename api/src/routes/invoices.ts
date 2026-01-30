@@ -1,131 +1,92 @@
 import { FastifyInstance } from "fastify";
 import { z } from "zod";
-import { computeTotals, generateInvoiceNumber } from "../services/invoice";
 import { createInvoicePdf } from "../lib/pdf";
-import type { VisitItemWithInvoice, VisitWithItems } from "../types/prisma";
-import type { Invoice, InvoiceItem } from "@prisma/client";
 
 const invoiceQuerySchema = z.object({
-  supplierId: z.string().uuid().optional(),
+  vendorId: z.string().uuid().optional(),
   careHomeId: z.string().uuid().optional(),
-  status: z.enum(["Draft", "Issued", "Paid"]).optional(),
   from: z.string().optional(),
   to: z.string().optional()
 });
 
-const invoiceGenerateSchema = z.object({
-  supplierId: z.string().uuid(),
-  careHomeId: z.string().uuid(),
-  from: z.string(),
-  to: z.string()
-});
-
 export default async function invoiceRoutes(fastify: FastifyInstance) {
-  fastify.post("/invoices/generate", { preHandler: fastify.authenticate }, async (request) => {
-    const payload = invoiceGenerateSchema.parse(request.body);
-    const periodStart = new Date(payload.from);
-    const periodEnd = new Date(payload.to);
-
-    const visits = (await fastify.prisma.visit.findMany({
-      where: {
-        supplierId: payload.supplierId,
-        careHomeId: payload.careHomeId,
-        visitedAt: { gte: periodStart, lte: periodEnd },
-        status: "Confirmed"
-      },
-      include: { items: { include: { invoiceItem: true } }, supplier: true, careHome: true }
-    })) as VisitWithItems[];
-
-    const eligibleItems = visits.flatMap((visit) => visit.items).filter((item) => !item.invoiceItem);
-    if (!eligibleItems.length) {
-      throw fastify.httpErrors.badRequest("No visit items available for invoicing");
-    }
-
-    const invoiceNo = await generateInvoiceNumber(fastify.prisma, payload.supplierId, periodStart);
-    const totals = computeTotals(
-      eligibleItems.map((item) => ({ qty: Number(item.qty), unitPrice: Number(item.unitPrice), vatRate: Number(item.vatRate) }))
-    );
-
-    const invoice = (await fastify.prisma.$transaction(async (tx) => {
-      const created = await tx.invoice.create({
-        data: {
-          supplierId: payload.supplierId,
-          careHomeId: payload.careHomeId,
-          invoiceNo,
-          periodStart,
-          periodEnd,
-          issuedAt: new Date(),
-          subtotal: totals.subtotal,
-          vatTotal: totals.vatTotal,
-          total: totals.total,
-          status: "Issued"
-        }
-      });
-
-      const invoiceItems = await Promise.all(
-        eligibleItems.map((item: VisitItemWithInvoice) =>
-          tx.invoiceItem.create({
-            data: {
-              invoiceId: created.id,
-              visitItemId: item.id,
-              description: item.description,
-              qty: item.qty,
-              unitPrice: item.unitPrice,
-              vatRate: item.vatRate,
-              lineTotal: item.lineTotal
-            }
-          })
-        )
-      );
-
-      await tx.visit.updateMany({
-        where: { id: { in: visits.map((v) => v.id) } },
-        data: { status: "Invoiced", lockedAt: new Date(), invoiceId: created.id }
-      });
-
-      return { created, invoiceItems };
-    })) as { created: Invoice; invoiceItems: InvoiceItem[] };
-
-    return { invoice: invoice.created, items: invoice.invoiceItems };
-  });
-
   fastify.get("/invoices", { preHandler: fastify.authenticate }, async (request) => {
     const query = invoiceQuerySchema.parse(request.query);
-    const where: any = {};
-    if (query.supplierId) where.supplierId = query.supplierId;
+    const where: any = { invoiceNumber: { not: null } };
+    if (query.vendorId) where.vendorId = query.vendorId;
     if (query.careHomeId) where.careHomeId = query.careHomeId;
-    if (query.status) where.status = query.status;
-    if (query.from) where.issuedAt = { ...where.issuedAt, gte: new Date(query.from) };
-    if (query.to) where.issuedAt = { ...where.issuedAt, lte: new Date(query.to) };
+    if (query.from) where.date = { ...where.date, gte: new Date(query.from) };
+    if (query.to) where.date = { ...where.date, lte: new Date(query.to) };
 
-    return fastify.prisma.invoice.findMany({
+    const items = await fastify.prisma.saleItem.findMany({
       where,
-      include: { supplier: true, careHome: true },
-      orderBy: { issuedAt: "desc" }
+      include: { vendor: true, careHome: true },
+      orderBy: { date: "desc" }
     });
+
+    const grouped = new Map<string, any>();
+    for (const item of items) {
+      if (!item.invoiceNumber) continue;
+      const existing = grouped.get(item.invoiceNumber);
+      if (!existing) {
+        grouped.set(item.invoiceNumber, {
+          invoiceNo: item.invoiceNumber,
+          vendor: item.vendor,
+          careHome: item.careHome,
+          issuedAt: item.date,
+          total: Number(item.price),
+          itemCount: 1
+        });
+      } else {
+        existing.total += Number(item.price);
+        existing.itemCount += 1;
+        if (item.date > existing.issuedAt) existing.issuedAt = item.date;
+      }
+    }
+
+    return Array.from(grouped.values()).sort((a, b) => b.issuedAt.getTime() - a.issuedAt.getTime());
   });
 
   fastify.get("/invoices/:id", { preHandler: fastify.authenticate }, async (request) => {
     const { id } = request.params as { id: string };
-    return fastify.prisma.invoice.findUnique({
-      where: { id },
-      include: { items: { include: { visitItem: true } }, supplier: true, careHome: true }
+    const items = await fastify.prisma.saleItem.findMany({
+      where: { invoiceNumber: id },
+      include: { vendor: true, careHome: true, careHqResident: true }
     });
+    if (!items.length) {
+      throw fastify.httpErrors.notFound("Invoice not found");
+    }
+    const first = items[0];
+    return {
+      invoiceNo: id,
+      vendor: first.vendor,
+      careHome: first.careHome,
+      issuedAt: first.date,
+      items
+    };
   });
 
   fastify.get("/invoices/:id/pdf", { preHandler: fastify.authenticate }, async (request, reply) => {
     const { id } = request.params as { id: string };
-    const invoice = await fastify.prisma.invoice.findUnique({
-      where: { id },
-      include: { items: true, supplier: true, careHome: true }
+    const items = await fastify.prisma.saleItem.findMany({
+      where: { invoiceNumber: id },
+      include: { vendor: true, careHome: true, careHqResident: true }
     });
-    if (!invoice) throw fastify.httpErrors.notFound("Invoice not found");
+    if (!items.length) throw fastify.httpErrors.notFound("Invoice not found");
 
+    const first = items[0];
     const buffer = await createInvoicePdf({
-      invoice,
-      careHome: invoice.careHome,
-      supplier: invoice.supplier,
-      items: invoice.items
+      invoiceNo: id,
+      vendor: first.vendor,
+      careHome: first.careHome,
+      issuedAt: first.date,
+      items: items
+        .sort((a, b) => (a.careHqResident.roomNumber ?? "").localeCompare(b.careHqResident.roomNumber ?? ""))
+        .map((item) => ({
+          residentName: item.careHqResident.fullName ?? item.careHqResident.roomNumber ?? "Resident",
+          description: item.description,
+          price: Number(item.price)
+        }))
     });
 
     reply.header("Content-Type", "application/pdf");
