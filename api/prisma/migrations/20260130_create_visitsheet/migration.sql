@@ -1,7 +1,7 @@
 CREATE TABLE [dbo].[VisitSheet] (
-  [id] NVARCHAR(191) NOT NULL,
-  [careHomeId] NVARCHAR(191) NOT NULL,
-  [vendorId] NVARCHAR(191) NOT NULL,
+  [id] NVARCHAR(1000) NOT NULL,
+  [careHomeId] NVARCHAR(1000) NOT NULL,
+  [vendorId] NVARCHAR(1000) NOT NULL,
   [visitDate] DATETIME2 NOT NULL,
   [createdBy] NVARCHAR(255) NOT NULL,
   [createdAt] DATETIME2 NOT NULL CONSTRAINT [VisitSheet_createdAt_df] DEFAULT CURRENT_TIMESTAMP,
