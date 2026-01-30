@@ -77,30 +77,46 @@ export default async function salesRoutes(fastify: FastifyInstance) {
     await fastify.requireHomeAccess(request, payload.careHomeId);
 
     const date = new Date(payload.date);
+    const startOfDay = new Date(date.toISOString().slice(0, 10));
+    const endOfDay = new Date(startOfDay);
+    endOfDay.setDate(endOfDay.getDate() + 1);
     const priceItems = await fastify.prisma.priceItem.findMany({
       where: { id: { in: payload.items.map((item) => item.priceItemId) } }
     });
     const priceItemMap = new Map(priceItems.map((item) => [item.id, item]));
 
-    const created = await fastify.prisma.$transaction(
-      payload.items.map((item) => {
-        const priceItem = priceItemMap.get(item.priceItemId);
-        if (!priceItem) {
-          throw fastify.httpErrors.badRequest("Price item not found");
+    const residentIds = Array.from(new Set(payload.items.map((item) => item.careHqResidentId)));
+
+    const created = await fastify.prisma.$transaction(async (tx) => {
+      await tx.saleItem.deleteMany({
+        where: {
+          careHomeId: payload.careHomeId,
+          vendorId: payload.vendorId,
+          careHqResidentId: { in: residentIds },
+          date: { gte: startOfDay, lt: endOfDay }
         }
-        return fastify.prisma.saleItem.create({
-          data: {
-            careHomeId: payload.careHomeId,
-            careHqResidentId: item.careHqResidentId,
-            vendorId: payload.vendorId,
-            priceItemId: priceItem.id,
-            description: priceItem.description,
-            price: Number(priceItem.price),
-            date
+      });
+
+      return Promise.all(
+        payload.items.map((item) => {
+          const priceItem = priceItemMap.get(item.priceItemId);
+          if (!priceItem) {
+            throw fastify.httpErrors.badRequest("Price item not found");
           }
-        });
-      })
-    );
+          return tx.saleItem.create({
+            data: {
+              careHomeId: payload.careHomeId,
+              careHqResidentId: item.careHqResidentId,
+              vendorId: payload.vendorId,
+              priceItemId: priceItem.id,
+              description: priceItem.description,
+              price: Number(priceItem.price),
+              date
+            }
+          });
+        })
+      );
+    });
 
     return { created: created.length };
   });

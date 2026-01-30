@@ -267,6 +267,21 @@ model Visit {
   invoiceId  String?
 }
 
+model VisitSheet {
+  id         String   @id @default(uuid())
+  careHomeId String
+  vendorId   String
+  visitDate  DateTime
+  createdBy  String
+  createdAt  DateTime @default(now())
+  careHome   CareHome @relation(fields: [careHomeId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  vendor     Vendor   @relation(fields: [vendorId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([careHomeId, vendorId, visitDate])
+  @@index([careHomeId])
+  @@index([vendorId])
+}
+
 model VisitItem {
   id            String   @id @default(uuid())
   visitId       String

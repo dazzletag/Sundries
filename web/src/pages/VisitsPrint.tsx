@@ -33,6 +33,7 @@ const VisitsPrintPage = () => {
   const [saving, setSaving] = useState(false);
   const [selected, setSelected] = useState<Record<string, Set<string>>>({});
 
+  const visitId = searchParams.get("visitId") ?? "";
   const careHomeId = searchParams.get("careHomeId") ?? "";
   const vendorId = searchParams.get("vendorId") ?? "";
   const date = searchParams.get("date") ?? "";
@@ -43,16 +44,28 @@ const VisitsPrintPage = () => {
   }, [data?.visitedAt]);
 
   useEffect(() => {
-    if (!careHomeId || !vendorId) return;
-    api
-      .get("/visits/print", { params: { careHomeId, vendorId, date: date || undefined } })
+    if (!visitId && (!careHomeId || !vendorId)) return;
+    const request = visitId
+      ? api.get(`/visit-sheets/${visitId}`)
+      : api.get("/visits/print", { params: { careHomeId, vendorId, date: date || undefined } });
+
+    request
       .then((response) => {
-        setData(response.data ?? null);
+        const payload = response.data ?? null;
+        setData(payload);
+        if (payload?.selections) {
+          const next: Record<string, Set<string>> = {};
+          payload.selections.forEach((item: { residentId: string; priceItemId: string }) => {
+            if (!next[item.residentId]) next[item.residentId] = new Set();
+            next[item.residentId].add(item.priceItemId);
+          });
+          setSelected(next);
+        }
       })
       .catch(() => {
         enqueueSnackbar("Failed to load print data", { variant: "error" });
       });
-  }, [api, careHomeId, vendorId, date, enqueueSnackbar]);
+  }, [api, careHomeId, vendorId, date, visitId, enqueueSnackbar]);
 
   const toggleSelection = (residentId: string, priceItemId: string) => {
     setSelected((prev) => {

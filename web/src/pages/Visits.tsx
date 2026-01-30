@@ -36,7 +36,7 @@ const VisitsPage = () => {
   useEffect(() => {
     let active = true;
     api
-      .get("/visits")
+      .get("/visit-sheets")
       .then((response) => {
         if (active) {
           setVisits(response.data ?? []);
@@ -71,12 +71,21 @@ const VisitsPage = () => {
       enqueueSnackbar("Select a care home and supplier", { variant: "warning" });
       return;
     }
-    const params = new URLSearchParams({
-      careHomeId: printCareHomeId,
-      vendorId: printVendorId,
-      date: printDate
-    });
-    window.open(`/visits/print?${params.toString()}`, "_blank", "noopener,noreferrer");
+    api
+      .post("/visit-sheets", {
+        careHomeId: printCareHomeId,
+        vendorId: printVendorId,
+        visitDate: printDate
+      })
+      .then((response) => {
+        const visitId = response.data?.id;
+        if (!visitId) {
+          enqueueSnackbar("Failed to create visit", { variant: "error" });
+          return;
+        }
+        window.open(`/visits/print?visitId=${visitId}`, "_blank", "noopener,noreferrer");
+      })
+      .catch(() => enqueueSnackbar("Failed to create visit", { variant: "error" }));
   };
 
   return (
@@ -134,6 +143,7 @@ const VisitsPage = () => {
               <TableCell>Care Home</TableCell>
               <TableCell>Supplier</TableCell>
               <TableCell>Date</TableCell>
+              <TableCell align="right">Open</TableCell>
               <TableCell>Status</TableCell>
             </TableRow>
           </TableHead>
@@ -146,10 +156,15 @@ const VisitsPage = () => {
                     <Typography>{visit.careHome?.name ?? "?"}</Typography>
                   </Stack>
                 </TableCell>
-                <TableCell>{visit.supplier?.name ?? "?"}</TableCell>
-                <TableCell>{new Date(visit.visitedAt).toLocaleString()}</TableCell>
+                <TableCell>{visit.vendor?.name ?? "?"}</TableCell>
+                <TableCell>{new Date(visit.visitDate ?? visit.visitedAt).toLocaleDateString()}</TableCell>
+                <TableCell align="right">
+                  <Button size="small" onClick={() => window.open(`/visits/print?visitId=${visit.id}`, "_blank")}>
+                    Open
+                  </Button>
+                </TableCell>
                 <TableCell>
-                  <VisitBadge status={visit.status} />
+                  <VisitBadge status={visit.status ?? "Draft"} />
                 </TableCell>
               </TableRow>
             ))}

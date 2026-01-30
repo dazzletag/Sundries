@@ -30,6 +30,12 @@ const printQuerySchema = z.object({
   date: z.string().optional()
 });
 
+const visitSheetCreateSchema = z.object({
+  careHomeId: z.string().uuid(),
+  vendorId: z.string().uuid(),
+  visitDate: z.string()
+});
+
 const resolveConsentFilter = (tradeContact?: string | null) => {
   const value = (tradeContact ?? "").toLowerCase();
   if (value.includes("hair")) return { hairdressersConsent: true };
@@ -103,6 +109,112 @@ export default async function visitRoutes(fastify: FastifyInstance) {
       include: { items: { include: { resident: true } }, supplier: true },
       orderBy: { visitedAt: "desc" }
     });
+  });
+
+  fastify.get("/visit-sheets", { preHandler: fastify.authenticate }, async (request) => {
+    const query = visitQuerySchema.parse(request.query);
+    const where: any = {};
+    if (query.from) where.visitDate = { ...where.visitDate, gte: new Date(query.from) };
+    if (query.to) where.visitDate = { ...where.visitDate, lte: new Date(query.to) };
+    if (query.careHomeId) where.careHomeId = query.careHomeId;
+    if (query.supplierId) where.vendorId = query.supplierId;
+
+    return fastify.prisma.visitSheet.findMany({
+      where,
+      include: { careHome: true, vendor: true },
+      orderBy: { visitDate: "desc" }
+    });
+  });
+
+  fastify.post("/visit-sheets", { preHandler: fastify.authenticate }, async (request) => {
+    const payload = visitSheetCreateSchema.parse(request.body);
+    await fastify.requireHomeAccess(request, payload.careHomeId);
+    const visitDate = new Date(payload.visitDate);
+
+    return fastify.prisma.visitSheet.upsert({
+      where: {
+        careHomeId_vendorId_visitDate: {
+          careHomeId: payload.careHomeId,
+          vendorId: payload.vendorId,
+          visitDate
+        }
+      },
+      create: {
+        careHomeId: payload.careHomeId,
+        vendorId: payload.vendorId,
+        visitDate,
+        createdBy: request.auth?.upn ?? request.auth?.preferred_username ?? "system"
+      },
+      update: {}
+    });
+  });
+
+  fastify.get("/visit-sheets/:id", { preHandler: fastify.authenticate }, async (request) => {
+    const { id } = request.params as { id: string };
+    const sheet = await fastify.prisma.visitSheet.findUnique({
+      where: { id },
+      include: { careHome: true, vendor: true }
+    });
+    if (!sheet) throw fastify.httpErrors.notFound("Visit not found");
+    await fastify.requireHomeAccess(request, sheet.careHomeId);
+
+    const consentFilter = resolveConsentFilter(sheet.vendor.tradeContact);
+    const residents = await fastify.prisma.residentConsent.findMany({
+      where: {
+        careHomeId: sheet.careHomeId,
+        currentResident: true,
+        ...consentFilter
+      },
+      orderBy: [{ roomNumber: "asc" }, { fullName: "asc" }],
+      select: {
+        id: true,
+        roomNumber: true,
+        fullName: true,
+        accountCode: true
+      }
+    });
+
+    const priceItems = await fastify.prisma.priceItem.findMany({
+      where: { vendorId: sheet.vendorId, isActive: true },
+      orderBy: { description: "asc" },
+      select: {
+        id: true,
+        description: true,
+        price: true,
+        validFrom: true
+      }
+    });
+
+    const existingSales = await fastify.prisma.saleItem.findMany({
+      where: {
+        careHomeId: sheet.careHomeId,
+        vendorId: sheet.vendorId,
+        date: {
+          gte: new Date(sheet.visitDate.toISOString().slice(0, 10)),
+          lt: new Date(new Date(sheet.visitDate).setDate(sheet.visitDate.getDate() + 1))
+        }
+      },
+      select: { careHqResidentId: true, priceItemId: true }
+    });
+
+    return {
+      visitId: sheet.id,
+      visitedAt: sheet.visitDate.toISOString(),
+      careHome: sheet.careHome,
+      vendor: {
+        id: sheet.vendor.id,
+        name: sheet.vendor.name,
+        accountRef: sheet.vendor.accountRef,
+        tradeContact: sheet.vendor.tradeContact ?? ""
+      },
+      consentField: Object.keys(consentFilter)[0],
+      residents,
+      priceItems,
+      selections: existingSales.filter((item) => item.priceItemId).map((item) => ({
+        residentId: item.careHqResidentId,
+        priceItemId: item.priceItemId as string
+      }))
+    };
   });
 
   fastify.get("/visits/print", { preHandler: fastify.authenticate }, async (request) => {
