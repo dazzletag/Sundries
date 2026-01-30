@@ -86,7 +86,7 @@ const VisitsPrintPage = () => {
                   <TableCell>Room</TableCell>
                   <TableCell>Resident</TableCell>
                   <TableCell>Account Code</TableCell>
-                  <TableCell align="center">Tick</TableCell>
+                  <TableCell>Services (tick as used)</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -95,35 +95,15 @@ const VisitsPrintPage = () => {
                     <TableCell>{resident.roomNumber ?? "-"}</TableCell>
                     <TableCell>{resident.fullName ?? "-"}</TableCell>
                     <TableCell>{resident.accountCode ?? "-"}</TableCell>
-                    <TableCell align="center">□</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </Box>
-
-          <Divider />
-
-          <Box>
-            <Typography variant="h6" gutterBottom>
-              Price List (tick as used)
-            </Typography>
-            <Table size="small">
-              <TableHead>
-                <TableRow>
-                  <TableCell>Description</TableCell>
-                  <TableCell>Price</TableCell>
-                  <TableCell>Valid From</TableCell>
-                  <TableCell align="center">Tick</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {data.priceItems.map((item) => (
-                  <TableRow key={item.id}>
-                    <TableCell>{item.description}</TableCell>
-                    <TableCell>£{Number(item.price).toFixed(2)}</TableCell>
-                    <TableCell>{item.validFrom ? item.validFrom.slice(0, 10) : "-"}</TableCell>
-                    <TableCell align="center">□</TableCell>
+                    <TableCell>
+                      <Box display="flex" flexWrap="wrap" gap={2}>
+                        {data.priceItems.map((item) => (
+                          <Typography key={item.id} variant="body2" sx={{ whiteSpace: "nowrap" }}>
+                            □ {item.description} (£{Number(item.price).toFixed(2)})
+                          </Typography>
+                        ))}
+                      </Box>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
