@@ -55,27 +55,33 @@ const main = async () => {
   const missingVendors = new Set<string>();
 
   let lastVendorRef = "";
+  let fallbackAccountCode = 0;
 
   for (const row of rows) {
-    const vendorRef = normalize(row.vendorRef) || lastVendorRef;
+    const vendorRef = normalize(row.vendorRef);
+    const accountCode = normalize(row.accountCode);
+    const resolvedVendorRef = vendorRef || accountCode || lastVendorRef;
     const description = normalize(row.itemDescription);
     const price = row.price;
     const validFrom = parseDate(row.priceValidFrom);
 
-    if (vendorRef) {
-      lastVendorRef = vendorRef;
+    if (resolvedVendorRef) {
+      lastVendorRef = resolvedVendorRef;
     }
 
-    if (!vendorRef || !description || price === undefined || price === null || Number.isNaN(price)) {
+    if (!resolvedVendorRef || !description || price === undefined || price === null || Number.isNaN(price)) {
       skipped += 1;
       continue;
     }
 
-    const vendor = await prisma.vendor.findUnique({ where: { accountRef: vendorRef } });
+    const vendor = await prisma.vendor.findUnique({ where: { accountRef: resolvedVendorRef } });
     if (!vendor) {
-      missingVendors.add(vendorRef);
+      missingVendors.add(resolvedVendorRef);
       skipped += 1;
       continue;
+    }
+    if (!vendorRef && accountCode) {
+      fallbackAccountCode += 1;
     }
 
     const existing = await prisma.priceItem.findFirst({
@@ -120,7 +126,7 @@ const main = async () => {
   }
 
   console.log(
-    `Prices import complete. created=${created}, updated=${updated}, skipped=${skipped}, missingVendors=${missingVendors.size}`
+    `Prices import complete. created=${created}, updated=${updated}, skipped=${skipped}, missingVendors=${missingVendors.size}, accountCodeFallback=${fallbackAccountCode}`
   );
   if (missingVendors.size > 0) {
     console.log(`Missing vendorRef values: ${Array.from(missingVendors).sort().join(", ")}`);
