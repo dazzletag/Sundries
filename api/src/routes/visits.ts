@@ -36,6 +36,10 @@ const visitSheetCreateSchema = z.object({
   visitDate: z.string()
 });
 
+const visitSheetSignSchema = z.object({
+  signed: z.boolean()
+});
+
 const resolveConsentFilter = (tradeContact?: string | null) => {
   const value = (tradeContact ?? "").toLowerCase();
   if (value.includes("hair")) return { hairdressersConsent: true };
@@ -149,6 +153,21 @@ export default async function visitRoutes(fastify: FastifyInstance) {
     });
   });
 
+  fastify.post("/visit-sheets/:id/sign", { preHandler: fastify.authenticate }, async (request) => {
+    const { id } = request.params as { id: string };
+    const payload = visitSheetSignSchema.parse(request.body);
+    const sheet = await fastify.prisma.visitSheet.findUnique({ where: { id } });
+    if (!sheet) throw fastify.httpErrors.notFound("Visit not found");
+    await fastify.requireHomeAccess(request, sheet.careHomeId);
+
+    return fastify.prisma.visitSheet.update({
+      where: { id },
+      data: payload.signed
+        ? { status: "Signed", signedAt: new Date() }
+        : { status: "Draft", signedAt: null }
+    });
+  });
+
   fastify.get("/visit-sheets/:id", { preHandler: fastify.authenticate }, async (request) => {
     const { id } = request.params as { id: string };
     const sheet = await fastify.prisma.visitSheet.findUnique({
@@ -213,6 +232,8 @@ export default async function visitRoutes(fastify: FastifyInstance) {
     return {
       visitId: sheet.id,
       visitedAt: sheet.visitDate.toISOString(),
+      status: sheet.status,
+      signedAt: sheet.signedAt,
       careHome: sheet.careHome,
       vendor: {
         id: sheet.vendor.id,

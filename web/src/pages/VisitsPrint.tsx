@@ -21,6 +21,8 @@ type PrintPayload = {
   careHome: { id: string; name: string };
   vendor: { id: string; name: string; accountRef: string; tradeContact: string };
   consentField: string;
+  status?: string;
+  signedAt?: string | null;
   residents: {
     id: string;
     roomNumber: string | null;
@@ -38,6 +40,7 @@ const VisitsPrintPage = () => {
   const [searchParams] = useSearchParams();
   const [data, setData] = useState<PrintPayload | null>(null);
   const [saving, setSaving] = useState(false);
+  const [signing, setSigning] = useState(false);
   const [selected, setSelected] = useState<Record<string, Set<string>>>({});
 
   const visitId = searchParams.get("visitId") ?? "";
@@ -135,6 +138,20 @@ const VisitsPrintPage = () => {
     }
   };
 
+  const handleSign = async () => {
+    if (!data || !visitId) return;
+    setSigning(true);
+    try {
+      await api.post(`/visit-sheets/${visitId}/sign`, { signed: true });
+      enqueueSnackbar("Visit marked as signed", { variant: "success" });
+      setData((prev) => (prev ? { ...prev, status: "Signed", signedAt: new Date().toISOString() } : prev));
+    } catch {
+      enqueueSnackbar("Failed to mark visit as signed", { variant: "error" });
+    } finally {
+      setSigning(false);
+    }
+  };
+
   return (
     <article>
       <Box display="flex" justifyContent="flex-end" gap={2} mb={2} sx={{ "@media print": { display: "none" } }}>
@@ -143,6 +160,9 @@ const VisitsPrintPage = () => {
         </Button>
         <Button variant="contained" onClick={handleInvoice}>
           Generate invoice
+        </Button>
+        <Button variant="outlined" onClick={handleSign} disabled={signing || data?.status === "Signed"}>
+          {data?.status === "Signed" ? "Signed" : signing ? "Signing..." : "Mark signed"}
         </Button>
         <Button variant="contained" onClick={() => window.print()}>
           Print list
@@ -171,6 +191,9 @@ const VisitsPrintPage = () => {
             </Typography>
             <Typography variant="subtitle1">
               Profession: <strong>{data.vendor.tradeContact || "Sundries"}</strong>
+            </Typography>
+            <Typography variant="subtitle1">
+              Status: <strong>{data.status ?? "Draft"}</strong>
             </Typography>
           </Box>
 

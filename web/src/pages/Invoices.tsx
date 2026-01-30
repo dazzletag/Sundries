@@ -60,14 +60,18 @@ const InvoicesPage = () => {
           </TableHead>
           <TableBody>
             {invoices.map((invoice) => (
-              <TableRow key={invoice.id} hover>
+              <TableRow key={invoice.invoiceNo} hover>
                 <TableCell>{invoice.invoiceNo}</TableCell>
-                <TableCell>{invoice.supplier?.name ?? "?"}</TableCell>
+                <TableCell>{invoice.vendor?.name ?? "?"}</TableCell>
                 <TableCell>{invoice.careHome?.name ?? "?"}</TableCell>
-                <TableCell>?{Number(invoice.total).toFixed(2)}</TableCell>
-                <TableCell>{invoice.status}</TableCell>
+                <TableCell>£{Number(invoice.total).toFixed(2)}</TableCell>
+                <TableCell>{invoice.status ?? "Draft"}</TableCell>
                 <TableCell align="right">
-                  <Button size="small" variant="outlined" onClick={() => downloadPdf(invoice.id, invoice.invoiceNo)}>
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    onClick={() => downloadPdf(invoice.invoiceNo, invoice.invoiceNo)}
+                  >
                     Download PDF
                   </Button>
                 </TableCell>

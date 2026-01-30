@@ -274,6 +274,8 @@ model VisitSheet {
   careHomeId String
   vendorId   String
   visitDate  DateTime
+  status     String   @default("Draft") @db.VarChar(16)
+  signedAt   DateTime?
   createdBy  String
   createdAt  DateTime @default(now())
   careHome   CareHome @relation(fields: [careHomeId], references: [id], onDelete: NoAction, onUpdate: NoAction)

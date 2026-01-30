@@ -24,9 +24,40 @@ export default async function invoiceRoutes(fastify: FastifyInstance) {
       orderBy: { date: "desc" }
     });
 
+    const visitSheetKeys = new Set<string>();
+    items.forEach((item) => {
+      const dateKey = item.date.toISOString().slice(0, 10);
+      visitSheetKeys.add(`${item.careHomeId}:${item.vendorId}:${dateKey}`);
+    });
+
+    const visitSheets = await fastify.prisma.visitSheet.findMany({
+      where: {
+        careHomeId: query.careHomeId,
+        vendorId: query.vendorId,
+        ...(query.from || query.to
+          ? {
+              visitDate: {
+                ...(query.from ? { gte: new Date(query.from) } : {}),
+                ...(query.to ? { lte: new Date(query.to) } : {})
+              }
+            }
+          : {})
+      },
+      include: { careHome: true, vendor: true }
+    });
+
+    const visitSheetMap = new Map(
+      visitSheets.map((sheet) => [
+        `${sheet.careHomeId}:${sheet.vendorId}:${sheet.visitDate.toISOString().slice(0, 10)}`,
+        sheet
+      ])
+    );
+
     const grouped = new Map<string, any>();
     for (const item of items) {
       if (!item.invoiceNumber) continue;
+      const dateKey = item.date.toISOString().slice(0, 10);
+      const sheet = visitSheetMap.get(`${item.careHomeId}:${item.vendorId}:${dateKey}`);
       const existing = grouped.get(item.invoiceNumber);
       if (!existing) {
         grouped.set(item.invoiceNumber, {
@@ -35,7 +66,9 @@ export default async function invoiceRoutes(fastify: FastifyInstance) {
           careHome: item.careHome,
           issuedAt: item.date,
           total: Number(item.price),
-          itemCount: 1
+          itemCount: 1,
+          status: sheet?.status ?? "Draft",
+          signedAt: sheet?.signedAt ?? null
         });
       } else {
         existing.total += Number(item.price);
@@ -57,11 +90,23 @@ export default async function invoiceRoutes(fastify: FastifyInstance) {
       throw fastify.httpErrors.notFound("Invoice not found");
     }
     const first = items[0];
+    const sheet = await fastify.prisma.visitSheet.findFirst({
+      where: {
+        careHomeId: first.careHomeId,
+        vendorId: first.vendorId,
+        visitDate: {
+          gte: new Date(first.date.toISOString().slice(0, 10)),
+          lt: new Date(new Date(first.date).setDate(first.date.getDate() + 1))
+        }
+      }
+    });
     return {
       invoiceNo: id,
       vendor: first.vendor,
       careHome: first.careHome,
       issuedAt: first.date,
+      status: sheet?.status ?? "Draft",
+      signedAt: sheet?.signedAt ?? null,
       items
     };
   });
