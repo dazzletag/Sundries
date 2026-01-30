@@ -56,6 +56,7 @@ const ConsentsPage = () => {
   const [loading, setLoading] = useState(false);
   const [bootstrapping, setBootstrapping] = useState(false);
   const [showInactive, setShowInactive] = useState(false);
+  const [savingIds, setSavingIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     let active = true;
@@ -114,11 +115,22 @@ const ConsentsPage = () => {
   }, [api, enqueueSnackbar, selectedHomeId]);
 
   const updateConsent = async (id: string, patch: Partial<ResidentConsent>) => {
+    const prev = consents.find((item) => item.id === id);
+    setConsents((items) => items.map((item) => (item.id === id ? { ...item, ...patch } : item)));
+    setSavingIds((items) => new Set(items).add(id));
     try {
       await api.patch(`/resident-consents/${id}`, patch);
-      setConsents((prev) => prev.map((item) => (item.id === id ? { ...item, ...patch } : item)));
     } catch {
+      if (prev) {
+        setConsents((items) => items.map((item) => (item.id === id ? prev : item)));
+      }
       enqueueSnackbar("Failed to update consent", { variant: "error" });
+    } finally {
+      setSavingIds((items) => {
+        const next = new Set(items);
+        next.delete(id);
+        return next;
+      });
     }
   };
 
@@ -196,36 +208,42 @@ const ConsentsPage = () => {
                   <TableCell align="center">
                     <Switch
                       checked={consent.sundryConsentReceived}
+                      disabled={savingIds.has(consent.id)}
                       onChange={(event) => updateConsent(consent.id, { sundryConsentReceived: event.target.checked })}
                     />
                   </TableCell>
                   <TableCell align="center">
                     <Switch
                       checked={consent.newspapersConsent}
+                      disabled={savingIds.has(consent.id)}
                       onChange={(event) => updateConsent(consent.id, { newspapersConsent: event.target.checked })}
                     />
                   </TableCell>
                   <TableCell align="center">
                     <Switch
                       checked={consent.chiropodyConsent}
+                      disabled={savingIds.has(consent.id)}
                       onChange={(event) => updateConsent(consent.id, { chiropodyConsent: event.target.checked })}
                     />
                   </TableCell>
                   <TableCell align="center">
                     <Switch
                       checked={consent.hairdressersConsent}
+                      disabled={savingIds.has(consent.id)}
                       onChange={(event) => updateConsent(consent.id, { hairdressersConsent: event.target.checked })}
                     />
                   </TableCell>
                   <TableCell align="center">
                     <Switch
                       checked={consent.shopConsent}
+                      disabled={savingIds.has(consent.id)}
                       onChange={(event) => updateConsent(consent.id, { shopConsent: event.target.checked })}
                     />
                   </TableCell>
                   <TableCell align="center">
                     <Switch
                       checked={consent.otherConsent}
+                      disabled={savingIds.has(consent.id)}
                       onChange={(event) => updateConsent(consent.id, { otherConsent: event.target.checked })}
                     />
                   </TableCell>
