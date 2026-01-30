@@ -29,7 +29,7 @@ const PricesPage = () => {
   const api = useApi();
   const { enqueueSnackbar } = useSnackbar();
   const [vendors, setVendors] = useState<Vendor[]>([]);
-  const [vendorId, setVendorId] = useState("");
+  const [vendorId, setVendorId] = useState<string | null>(null);
   const [items, setItems] = useState<PriceItem[]>([]);
   const [form, setForm] = useState<Partial<PriceItem>>({ description: "", price: 0 });
   const [saving, setSaving] = useState(false);
@@ -42,14 +42,17 @@ const PricesPage = () => {
   const loadVendors = async () => {
     const response = await api.get("/vendors");
     setVendors(response.data ?? []);
-    if (!vendorId && response.data?.length) {
-      setVendorId(response.data[0].id);
+    if (vendorId === null && response.data?.length) {
+      setVendorId("all");
     }
   };
 
-  const loadItems = async (targetVendorId: string) => {
+  const loadItems = async (targetVendorId: string | null) => {
     if (!targetVendorId) return;
-    const response = await api.get("/price-items", { params: { vendorId: targetVendorId } });
+    const response =
+      targetVendorId === "all"
+        ? await api.get("/price-items")
+        : await api.get("/price-items", { params: { vendorId: targetVendorId } });
     setItems(response.data ?? []);
   };
 
@@ -62,7 +65,7 @@ const PricesPage = () => {
   }, [vendorId]);
 
   const handleSave = async () => {
-    if (!vendorId || !form.description) {
+    if (!vendorId || vendorId === "all" || !form.description) {
       enqueueSnackbar("Select a vendor and enter a description", { variant: "warning" });
       return;
     }
@@ -101,13 +104,19 @@ const PricesPage = () => {
         <Box>
           <Paper elevation={1}>
             <Box p={2} display="flex" flexDirection="column" gap={2}>
-              <TextField select label="Vendor" value={vendorId} onChange={(event) => setVendorId(event.target.value)}>
-                {vendors.map((vendor) => (
-                  <MenuItem key={vendor.id} value={vendor.id}>
-                    {vendor.name}
-                  </MenuItem>
-                ))}
-              </TextField>
+      <TextField
+        select
+        label="Vendor"
+        value={vendorId ?? ""}
+        onChange={(event) => setVendorId(event.target.value)}
+      >
+        <MenuItem value="all">All vendors</MenuItem>
+        {vendors.map((vendor) => (
+          <MenuItem key={vendor.id} value={vendor.id}>
+            {vendor.name}
+          </MenuItem>
+        ))}
+      </TextField>
               <TextField
                 label="Item description"
                 value={form.description ?? ""}
@@ -141,7 +150,7 @@ const PricesPage = () => {
           <Paper elevation={1}>
             <Box p={2}>
               <Typography variant="h6" gutterBottom>
-                {selectedVendor ? `${selectedVendor.name} Prices` : "Prices"}
+                {vendorId === "all" ? "All Prices" : selectedVendor ? `${selectedVendor.name} Prices` : "Prices"}
               </Typography>
               <Table size="small">
                 <TableHead>
