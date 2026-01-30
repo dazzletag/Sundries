@@ -20,6 +20,7 @@ model CareHome {
   residentConsents ResidentConsent[]
   saleItems SaleItem[]
   newspaperOrders NewspaperOrder[]
+  visitSheets VisitSheet[]
   homeRoles UserHomeRole[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -114,6 +115,7 @@ model Vendor {
   updatedAt   DateTime @updatedAt
   priceItems  PriceItem[]
   saleItems   SaleItem[]
+  visitSheets VisitSheet[]
 }
 
 model PriceItem {
