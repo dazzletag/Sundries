@@ -24,6 +24,22 @@ const visitQuerySchema = z.object({
   status: z.enum(["Draft", "Confirmed", "Invoiced"]).optional()
 });
 
+const printQuerySchema = z.object({
+  careHomeId: z.string().uuid(),
+  vendorId: z.string().uuid(),
+  date: z.string().optional()
+});
+
+const resolveConsentFilter = (tradeContact?: string | null) => {
+  const value = (tradeContact ?? "").toLowerCase();
+  if (value.includes("hair")) return { hairdressersConsent: true };
+  if (value.includes("chiropod")) return { chiropodyConsent: true };
+  if (value.includes("news")) return { newspapersConsent: true };
+  if (value.includes("shop")) return { shopConsent: true };
+  if (value.includes("other")) return { otherConsent: true };
+  return { sundryConsentReceived: true };
+};
+
 const ensureConsent = async (
   fastify: FastifyInstance,
   residentId: string,
@@ -87,6 +103,60 @@ export default async function visitRoutes(fastify: FastifyInstance) {
       include: { items: { include: { resident: true } }, supplier: true },
       orderBy: { visitedAt: "desc" }
     });
+  });
+
+  fastify.get("/visits/print", { preHandler: fastify.authenticate }, async (request) => {
+    const query = printQuerySchema.parse(request.query);
+    await fastify.requireHomeAccess(request, query.careHomeId);
+
+    const [careHome, vendor] = await Promise.all([
+      fastify.prisma.careHome.findUnique({ where: { id: query.careHomeId } }),
+      fastify.prisma.vendor.findUnique({ where: { id: query.vendorId } })
+    ]);
+
+    if (!careHome) throw fastify.httpErrors.notFound("Care home not found");
+    if (!vendor) throw fastify.httpErrors.notFound("Vendor not found");
+
+    const consentFilter = resolveConsentFilter(vendor.tradeContact);
+    const residents = await fastify.prisma.residentConsent.findMany({
+      where: {
+        careHomeId: query.careHomeId,
+        currentResident: true,
+        ...consentFilter
+      },
+      orderBy: [{ roomNumber: "asc" }, { fullName: "asc" }],
+      select: {
+        id: true,
+        roomNumber: true,
+        fullName: true,
+        accountCode: true
+      }
+    });
+
+    const priceItems = await fastify.prisma.priceItem.findMany({
+      where: { vendorId: vendor.id, isActive: true },
+      orderBy: { description: "asc" },
+      select: {
+        id: true,
+        description: true,
+        price: true,
+        validFrom: true
+      }
+    });
+
+    return {
+      visitedAt: query.date ? new Date(query.date).toISOString() : new Date().toISOString(),
+      careHome,
+      vendor: {
+        id: vendor.id,
+        name: vendor.name,
+        accountRef: vendor.accountRef,
+        tradeContact: vendor.tradeContact ?? ""
+      },
+      consentField: Object.keys(consentFilter)[0],
+      residents,
+      priceItems
+    };
   });
 
   fastify.post("/visits/:id/items", { preHandler: fastify.authenticate }, async (request) => {

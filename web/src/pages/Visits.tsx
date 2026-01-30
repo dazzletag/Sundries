@@ -3,7 +3,9 @@ import { useSnackbar } from "notistack";
 import { useApi } from "../hooks/useApi";
 import {
   Avatar,
+  Button,
   Chip,
+  MenuItem,
   Paper,
   Stack,
   Table,
@@ -12,6 +14,7 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  TextField,
   Typography
 } from "@mui/material";
 
@@ -24,6 +27,11 @@ const VisitsPage = () => {
   const api = useApi();
   const { enqueueSnackbar } = useSnackbar();
   const [visits, setVisits] = useState<any[]>([]);
+  const [careHomes, setCareHomes] = useState<any[]>([]);
+  const [vendors, setVendors] = useState<any[]>([]);
+  const [printCareHomeId, setPrintCareHomeId] = useState("");
+  const [printVendorId, setPrintVendorId] = useState("");
+  const [printDate, setPrintDate] = useState(() => new Date().toISOString().slice(0, 10));
 
   useEffect(() => {
     let active = true;
@@ -42,12 +50,82 @@ const VisitsPage = () => {
     };
   }, [api, enqueueSnackbar]);
 
+  useEffect(() => {
+    api
+      .get("/carehomes")
+      .then((response) => {
+        setCareHomes(response.data ?? []);
+      })
+      .catch(() => enqueueSnackbar("Care homes could not be loaded", { variant: "error" }));
+
+    api
+      .get("/vendors")
+      .then((response) => {
+        setVendors(response.data ?? []);
+      })
+      .catch(() => enqueueSnackbar("Vendors could not be loaded", { variant: "error" }));
+  }, [api, enqueueSnackbar]);
+
+  const handlePrint = () => {
+    if (!printCareHomeId || !printVendorId) {
+      enqueueSnackbar("Select a care home and supplier", { variant: "warning" });
+      return;
+    }
+    const params = new URLSearchParams({
+      careHomeId: printCareHomeId,
+      vendorId: printVendorId,
+      date: printDate
+    });
+    window.open(`/visits/print?${params.toString()}`, "_blank", "noopener,noreferrer");
+  };
+
   return (
     <article>
       <Stack direction="row" alignItems="center" justifyContent="space-between" mb={2}>
         <Typography variant="h4">Visits</Typography>
         <Chip label="Draft + Confirmed" color="primary" />
       </Stack>
+
+      <Paper elevation={1} sx={{ p: 2, mb: 2 }}>
+        <Stack direction={{ xs: "column", md: "row" }} spacing={2} alignItems="center">
+          <TextField
+            select
+            label="Care Home"
+            value={printCareHomeId}
+            onChange={(event) => setPrintCareHomeId(event.target.value)}
+            sx={{ minWidth: 220 }}
+          >
+            {careHomes.map((home) => (
+              <MenuItem key={home.id} value={home.id}>
+                {home.name}
+              </MenuItem>
+            ))}
+          </TextField>
+          <TextField
+            select
+            label="Supplier"
+            value={printVendorId}
+            onChange={(event) => setPrintVendorId(event.target.value)}
+            sx={{ minWidth: 220 }}
+          >
+            {vendors.map((vendor) => (
+              <MenuItem key={vendor.id} value={vendor.id}>
+                {vendor.name}
+              </MenuItem>
+            ))}
+          </TextField>
+          <TextField
+            label="Visit Date"
+            type="date"
+            InputLabelProps={{ shrink: true }}
+            value={printDate}
+            onChange={(event) => setPrintDate(event.target.value)}
+          />
+          <Button variant="contained" onClick={handlePrint}>
+            Print Consent List
+          </Button>
+        </Stack>
+      </Paper>
 
       <TableContainer component={Paper} elevation={1}>
         <Table>
