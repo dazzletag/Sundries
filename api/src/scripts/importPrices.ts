@@ -8,15 +8,20 @@ type PriceRow = {
   itemDescription?: string;
   price?: number;
   accountCode?: string;
-  priceValidFrom?: Date | string;
+  priceValidFrom?: Date | string | number;
 };
 
 const prisma = new PrismaClient();
 
 const normalize = (value?: string) => (value ?? "").trim();
 
-const parseDate = (value?: Date | string) => {
-  if (!value) return null;
+const parseDate = (value?: Date | string | number) => {
+  if (value === null || value === undefined || value === "") return null;
+  if (typeof value === "number") {
+    const excelEpoch = Date.UTC(1899, 11, 30);
+    const date = new Date(excelEpoch + value * 86400000);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
   const date = value instanceof Date ? value : new Date(value);
   return Number.isNaN(date.getTime()) ? null : date;
 };
@@ -40,7 +45,7 @@ const main = async () => {
     ? path.resolve(fileArg)
     : path.resolve("..", "DataImport", "prices.xlsx");
 
-  const workbook = xlsx.readFile(filePath);
+  const workbook = xlsx.readFile(filePath, { cellDates: true });
   const sheetName = workbook.SheetNames[0];
   if (!sheetName) {
     throw new Error("No sheets found in prices workbook");
