@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Box,
   Button,
-  Grid,
   MenuItem,
   Paper,
   Table,
@@ -165,8 +164,8 @@ const SalesPage = () => {
       <Typography variant="h4" mb={2}>
         Service Billing
       </Typography>
-      <Grid container spacing={2}>
-        <Grid item xs={12} md={4}>
+      <Box display="grid" gap={2} sx={{ gridTemplateColumns: { xs: "1fr", md: "320px 1fr" } }}>
+        <Box>
           <Paper elevation={1}>
             <Box p={2} display="flex" flexDirection="column" gap={2}>
               <TextField select label="Care Home" value={careHomeId} onChange={(event) => setCareHomeId(event.target.value)}>
@@ -223,8 +222,8 @@ const SalesPage = () => {
               </Button>
             </Box>
           </Paper>
-        </Grid>
-        <Grid item xs={12} md={8}>
+        </Box>
+        <Box>
           <Paper elevation={1}>
             <Box p={2}>
               <Typography variant="h6" gutterBottom>
@@ -258,8 +257,8 @@ const SalesPage = () => {
               </Table>
             </Box>
           </Paper>
-        </Grid>
-      </Grid>
+        </Box>
+      </Box>
     </article>
   );
 };

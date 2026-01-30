@@ -1,13 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import {
-  Box,
-  Button,
-  Grid,
-  MenuItem,
-  Paper,
-  TextField,
-  Typography
-} from "@mui/material";
+import { Box, Button, MenuItem, Paper, TextField, Typography } from "@mui/material";
 import { useSnackbar } from "notistack";
 import { useApi } from "../hooks/useApi";
 
@@ -99,8 +91,12 @@ const VendorsPage = () => {
       <Typography variant="h4" mb={2}>
         Vendors
       </Typography>
-      <Grid container spacing={2}>
-        <Grid item xs={12} md={4}>
+      <Box
+        display="grid"
+        gap={2}
+        sx={{ gridTemplateColumns: { xs: "1fr", md: "320px 1fr" } }}
+      >
+        <Box>
           <Paper elevation={1}>
             <Box p={2} display="flex" flexDirection="column" gap={1}>
               <Typography variant="h6">Vendor List</Typography>
@@ -119,55 +115,59 @@ const VendorsPage = () => {
               </TextField>
             </Box>
           </Paper>
-        </Grid>
-        <Grid item xs={12} md={8}>
+        </Box>
+        <Box>
           <Paper elevation={1}>
             <Box p={2} display="flex" flexDirection="column" gap={2}>
               <Typography variant="h6">Details</Typography>
-              <Grid container spacing={2}>
-                <Grid item xs={12} md={6}>
+              <Box
+                display="grid"
+                gap={2}
+                sx={{ gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" } }}
+              >
+                <Box>
                   <TextField
                     label="Name"
                     value={form.name ?? ""}
                     fullWidth
                     onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
                   />
-                </Grid>
-                <Grid item xs={12} md={6}>
+                </Box>
+                <Box>
                   <TextField
                     label="Account Ref"
                     value={form.accountRef ?? ""}
                     fullWidth
                     onChange={(event) => setForm((prev) => ({ ...prev, accountRef: event.target.value }))}
                   />
-                </Grid>
-                <Grid item xs={12} md={6}>
+                </Box>
+                <Box>
                   <TextField
                     label="Def Nom Code"
                     value={form.defNomCode ?? ""}
                     fullWidth
                     onChange={(event) => setForm((prev) => ({ ...prev, defNomCode: event.target.value }))}
                   />
-                </Grid>
-                <Grid item xs={12} md={6}>
+                </Box>
+                <Box>
                   <TextField
                     label="Trade Contact"
                     value={form.tradeContact ?? ""}
                     fullWidth
                     onChange={(event) => setForm((prev) => ({ ...prev, tradeContact: event.target.value }))}
                   />
-                </Grid>
+                </Box>
                 {["address1", "address2", "address3", "address4", "address5"].map((field) => (
-                  <Grid item xs={12} md={6} key={field}>
+                  <Box key={field}>
                     <TextField
                       label={field.replace("address", "Address ")}
                       value={(form as any)[field] ?? ""}
                       fullWidth
                       onChange={(event) => setForm((prev) => ({ ...prev, [field]: event.target.value }))}
                     />
-                  </Grid>
+                  </Box>
                 ))}
-              </Grid>
+              </Box>
               <Box display="flex" gap={2}>
                 <Button variant="contained" onClick={handleSave} disabled={saving}>
                   {saving ? "Saving..." : "Save vendor"}
@@ -178,8 +178,8 @@ const VendorsPage = () => {
               </Box>
             </Box>
           </Paper>
-        </Grid>
-      </Grid>
+        </Box>
+      </Box>
     </article>
   );
 };
