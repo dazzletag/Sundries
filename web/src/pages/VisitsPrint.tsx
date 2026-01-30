@@ -21,8 +21,15 @@ type PrintPayload = {
   careHome: { id: string; name: string };
   vendor: { id: string; name: string; accountRef: string; tradeContact: string };
   consentField: string;
-  residents: { id: string; roomNumber: string | null; fullName: string | null; accountCode: string | null }[];
+  residents: {
+    id: string;
+    roomNumber: string | null;
+    fullName: string | null;
+    accountCode: string | null;
+    careHqResidentId: string | null;
+  }[];
   priceItems: { id: string; description: string; price: number; validFrom: string | null }[];
+  selections?: { residentId: string; priceItemId: string }[];
 };
 
 const VisitsPrintPage = () => {
@@ -81,9 +88,9 @@ const VisitsPrintPage = () => {
 
   const handleSave = async () => {
     if (!data) return;
-    const items = Object.entries(selected).flatMap(([residentId, priceIds]) =>
+    const items = Object.entries(selected).flatMap(([residentConsentId, priceIds]) =>
       Array.from(priceIds).map((priceItemId) => ({
-        careHqResidentId: residentId,
+        residentConsentId,
         priceItemId
       }))
     );
@@ -196,6 +203,7 @@ const VisitsPrintPage = () => {
                               size="small"
                               checked={selected[resident.id]?.has(item.id) ?? false}
                               onChange={() => toggleSelection(resident.id, item.id)}
+                              disabled={!resident.careHqResidentId && !resident.accountCode}
                             />
                             <Typography variant="body2">
                               {item.description} (£{Number(item.price).toFixed(2)})

@@ -33,7 +33,7 @@ const bulkSchema = z.object({
   date: z.string(),
   items: z.array(
     z.object({
-      careHqResidentId: z.string().uuid(),
+      residentConsentId: z.string().uuid(),
       priceItemId: z.string().uuid()
     })
   )
@@ -80,12 +80,24 @@ export default async function salesRoutes(fastify: FastifyInstance) {
     const startOfDay = new Date(date.toISOString().slice(0, 10));
     const endOfDay = new Date(startOfDay);
     endOfDay.setDate(endOfDay.getDate() + 1);
-    const priceItems = await fastify.prisma.priceItem.findMany({
-      where: { id: { in: payload.items.map((item) => item.priceItemId) } }
-    });
+    const [priceItems, residentConsents] = await Promise.all([
+      fastify.prisma.priceItem.findMany({
+        where: { id: { in: payload.items.map((item) => item.priceItemId) } }
+      }),
+      fastify.prisma.residentConsent.findMany({
+        where: { id: { in: payload.items.map((item) => item.residentConsentId) } }
+      })
+    ]);
     const priceItemMap = new Map(priceItems.map((item) => [item.id, item]));
+    const residentMap = new Map(residentConsents.map((item) => [item.id, item]));
 
-    const residentIds = Array.from(new Set(payload.items.map((item) => item.careHqResidentId)));
+    const residentIds = Array.from(
+      new Set(
+        residentConsents
+          .map((item) => item.careHqResidentId)
+          .filter((value): value is string => Boolean(value))
+      )
+    );
 
     const created = await fastify.prisma.$transaction(async (tx) => {
       await tx.saleItem.deleteMany({
@@ -98,15 +110,29 @@ export default async function salesRoutes(fastify: FastifyInstance) {
       });
 
       return Promise.all(
-        payload.items.map((item) => {
+        payload.items.map(async (item) => {
           const priceItem = priceItemMap.get(item.priceItemId);
           if (!priceItem) {
             throw fastify.httpErrors.badRequest("Price item not found");
           }
+          const consent = residentMap.get(item.residentConsentId);
+          if (!consent) {
+            throw fastify.httpErrors.badRequest("Resident consent not found");
+          }
+          let careHqResidentId = consent.careHqResidentId ?? null;
+          if (!careHqResidentId && consent.accountCode) {
+            const resident = await tx.careHqResident.findFirst({
+              where: { accountCode: consent.accountCode, careHomeId: payload.careHomeId }
+            });
+            careHqResidentId = resident?.id ?? null;
+          }
+          if (!careHqResidentId) {
+            throw fastify.httpErrors.badRequest("Resident is not linked to CareHQ");
+          }
           return tx.saleItem.create({
             data: {
               careHomeId: payload.careHomeId,
-              careHqResidentId: item.careHqResidentId,
+              careHqResidentId,
               vendorId: payload.vendorId,
               priceItemId: priceItem.id,
               description: priceItem.description,

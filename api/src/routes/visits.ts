@@ -170,7 +170,8 @@ export default async function visitRoutes(fastify: FastifyInstance) {
         id: true,
         roomNumber: true,
         fullName: true,
-        accountCode: true
+        accountCode: true,
+        careHqResidentId: true
       }
     });
 
@@ -197,6 +198,18 @@ export default async function visitRoutes(fastify: FastifyInstance) {
       select: { careHqResidentId: true, priceItemId: true }
     });
 
+    const consentByCareHqId = new Map(
+      residents
+        .filter((resident) => resident.careHqResidentId)
+        .map((resident) => [resident.careHqResidentId as string, resident.id])
+    );
+    const selections = existingSales
+      .map((item) => {
+        const residentId = consentByCareHqId.get(item.careHqResidentId);
+        return residentId ? { residentId, priceItemId: item.priceItemId as string } : null;
+      })
+      .filter(Boolean);
+
     return {
       visitId: sheet.id,
       visitedAt: sheet.visitDate.toISOString(),
@@ -210,10 +223,7 @@ export default async function visitRoutes(fastify: FastifyInstance) {
       consentField: Object.keys(consentFilter)[0],
       residents,
       priceItems,
-      selections: existingSales.filter((item) => item.priceItemId).map((item) => ({
-        residentId: item.careHqResidentId,
-        priceItemId: item.priceItemId as string
-      }))
+      selections
     };
   });
 
@@ -241,7 +251,8 @@ export default async function visitRoutes(fastify: FastifyInstance) {
         id: true,
         roomNumber: true,
         fullName: true,
-        accountCode: true
+        accountCode: true,
+        careHqResidentId: true
       }
     });
 
