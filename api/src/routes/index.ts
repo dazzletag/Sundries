@@ -7,6 +7,12 @@ import consentRoutes from "./consents";
 import visitRoutes from "./visits";
 import providerRoutes from "./providers";
 import invoiceRoutes from "./invoices";
+import adminRoutes from "./admin";
+import residentConsentRoutes from "./residentConsents";
+import vendorRoutes from "./vendors";
+import priceItemRoutes from "./priceItems";
+import salesRoutes from "./sales";
+import newspaperRoutes from "./newspapers";
 
 export default async function registerRoutes(fastify: FastifyInstance) {
   const healthResponse = () => ({
@@ -36,9 +42,15 @@ export default async function registerRoutes(fastify: FastifyInstance) {
     }
   });
 
-  fastify.get("/me", { preHandler: fastify.authenticate }, async (request) => ({
-    user: request.auth
-  }));
+  fastify.get("/me", { preHandler: fastify.authenticate }, async (request) => {
+    const context = await fastify.getUserContext(request);
+    return {
+      auth: request.auth,
+      user: context.user,
+      roles: context.roles,
+      isAdmin: context.isAdmin
+    };
+  });
 
   fastify.register(careHomeRoutes, { prefix: "/carehomes" });
   fastify.register(supplierRoutes, { prefix: "/suppliers" });
@@ -48,4 +60,10 @@ export default async function registerRoutes(fastify: FastifyInstance) {
   fastify.register(visitRoutes);
   fastify.register(providerRoutes);
   fastify.register(invoiceRoutes);
+  fastify.register(adminRoutes, { prefix: "/admin" });
+  fastify.register(residentConsentRoutes);
+  fastify.register(vendorRoutes);
+  fastify.register(priceItemRoutes);
+  fastify.register(salesRoutes);
+  fastify.register(newspaperRoutes);
 }

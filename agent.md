@@ -256,3 +256,83 @@ This section documents the working deployment path and required settings so we c
 ### Notes
 - If API deploy returns 502 but `/health` is OK, the pipeline continues; check Kudu deployment logs for actual status.
 - If API fails to start with `DATABASE_URL` errors, reset `DATABASE_URL` directly in App Service and restart.
+
+---
+
+## PowerApps Migration Plan (SQL + Graph + Per-Home Permissions) (2026-01-30)
+
+Decisions confirmed:
+- **Fully migrate** the PowerApps data to SQL (no SharePoint/Excel as source of truth).
+- **Email/PDF** flows will use **Microsoft Graph** (not Power Automate).
+- **Per-home permissioning** is required, with an **admin/settings** area.
+
+### PowerApps reference model (for parity)
+Source app and flow live under `PowerApps/`:
+- PowerApp export: `PowerApps/Microsoft.PowerApps/apps/3993876067650085744/Nb0bbd96e-6118-48cb-836e-8efe0424efde-document.msapp`
+- Flow: `PowerApps/Microsoft.Flow/flows/674c19b3-cbd0-45b2-bd20-9402f7b67e66/definition.json`
+
+Key data sources in PowerApps (to migrate into SQL):
+- `ResidentConsent` (consent flags, notes, attachments, current resident flag)
+- `tblPrices` (items + prices per vendor account)
+- `tblSales` (service line items: date, vendor, resident, price, itemId, invoiced)
+- `tblOrders` (newspaper orders w/ day-of-week flags)
+- `Newpapers` (newspaper catalog with price + weekday/weekend)
+- `Vendors` (Excel tables: account ref, name, def nom code, address)
+- `currentRoomlist` (CareHQ residents list)
+
+### Target SQL schema (high level)
+New tables (or Prisma models) to replace SharePoint/Excel:
+- `Vendor` (accountRef, name, defNomCode, address lines, contact, isActive)
+- `PriceItem` (vendorId, description, price, validFrom, isActive)
+- `ResidentConsent` (residentId, careHomeId, flags, notes, attachments)
+- `SaleItem` (residentId, vendorId, itemId, date, price, invoiced, invoiceNo, suId)
+- `Newspaper` (title, price, weekdayOrWeekend, sort)
+- `NewspaperOrder` (residentId, newspaperId/title, price, Mon–Sun flags)
+- `UserHomeRole` (userId, careHomeId, role)
+
+Existing `CareHqResident` remains the resident source of truth (synced from CareHQ).
+
+### API endpoints to add/expand
+Consents:
+- `GET /consents?careHomeId=...`
+- `PATCH /consents/:id` (toggle flags, notes)
+- `POST /consents/:id/attachments` (Graph upload to SharePoint/OneDrive or Azure Blob)
+
+Vendors + Prices:
+- `GET /vendors`
+- `GET /price-items?vendorId=...`
+- `POST /price-items` / `PATCH /price-items/:id`
+
+Service billing:
+- `POST /sales`
+- `DELETE /sales/:id`
+- `GET /sales?vendorId=...&careHomeId=...&invoiced=false`
+- `POST /invoices` (HTML→PDF→email via Graph; optionally mark sale items invoiced)
+
+Newspapers:
+- `GET /newspapers`
+- `GET /newspaper-orders?residentId=...`
+- `POST /newspaper-orders` (upsert by resident+title, update day flags)
+- `GET /newspaper-orders/today?careHomeId=...`
+
+Admin/settings:
+- `GET /admin/users`
+- `PATCH /admin/users/:id/homes` (assign/remove care homes + role)
+- `GET /admin/homes` (for home list management)
+
+### Permissions model (per-home)
+- Add `UserHomeRole` table and middleware:
+  - User must have role for care home to access residents/consents/sales/orders.
+  - Admin role can manage users and home assignments.
+- UI shows only assigned homes in the home selector.
+
+### Graph integration
+- Use Graph to send PDF emails (replace PowerAppV2 flow).
+- PDF generation from server-side HTML (same templates as PowerApps).
+- Store a copy in Blob or SharePoint (decide which).
+
+### Migration tasks
+1. Import vendors + price lists (Excel → SQL).
+2. Import residents + consents (CareHQ sync + consent bootstrap).
+3. Import legacy sales/orders if needed (SharePoint export → SQL).
+4. Freeze PowerApps once parity reached.

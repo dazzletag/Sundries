@@ -16,6 +16,11 @@ model CareHome {
   residents Resident[]
   visits    Visit[]
   invoices  Invoice[]
+  careHqResidents CareHqResident[]
+  residentConsents ResidentConsent[]
+  saleItems SaleItem[]
+  newspaperOrders NewspaperOrder[]
+  homeRoles UserHomeRole[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -51,6 +56,7 @@ model Resident {
 
 model CareHqResident {
   id              String   @id @default(uuid())
+  careHomeId      String?
   careHomeName    String
   careHqLocationId String
   careHqRoomId    String   @unique
@@ -62,6 +68,169 @@ model CareHqResident {
   lastSyncedAt    DateTime @default(now())
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+  careHome        CareHome? @relation(fields: [careHomeId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  residentConsents ResidentConsent[]
+  saleItems       SaleItem[]
+  newspaperOrders NewspaperOrder[]
+}
+
+model AppUser {
+  id          String   @id @default(uuid())
+  oid         String   @unique
+  upn         String?  @unique
+  displayName String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  homeRoles   UserHomeRole[]
+}
+
+model UserHomeRole {
+  id         String   @id @default(uuid())
+  userId     String
+  careHomeId String
+  role       String   @default("User") @db.VarChar(32)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  user       AppUser  @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  careHome   CareHome @relation(fields: [careHomeId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([userId, careHomeId])
+}
+
+model Vendor {
+  id          String   @id @default(uuid())
+  name        String
+  accountRef  String   @unique
+  defNomCode  String?  @db.VarChar(16)
+  tradeContact String?
+  address1    String?
+  address2    String?
+  address3    String?
+  address4    String?
+  address5    String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  priceItems  PriceItem[]
+  saleItems   SaleItem[]
+}
+
+model PriceItem {
+  id          String   @id @default(uuid())
+  vendorId    String
+  description String
+  price       Decimal  @db.Decimal(10, 2)
+  validFrom   DateTime?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  vendor      Vendor   @relation(fields: [vendorId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  saleItems   SaleItem[]
+
+  @@index([vendorId])
+}
+
+model ResidentConsent {
+  id                   String   @id @default(uuid())
+  careHomeId           String
+  careHqResidentId     String?
+  roomNumber           String?
+  fullName             String?
+  accountCode          String?
+  serviceUserId        String?
+  sundryConsentReceived Boolean @default(false)
+  newspapersConsent    Boolean @default(false)
+  chiropodyConsent     Boolean @default(false)
+  hairdressersConsent  Boolean @default(false)
+  shopConsent          Boolean @default(false)
+  otherConsent         Boolean @default(false)
+  comments             String?
+  chiropodyNote        String?
+  shopNote             String?
+  currentResident      Boolean @default(true)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  careHome             CareHome @relation(fields: [careHomeId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  careHqResident        CareHqResident? @relation(fields: [careHqResidentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  attachments          ConsentAttachment[]
+
+  @@unique([careHqResidentId])
+  @@index([careHomeId])
+}
+
+model ConsentAttachment {
+  id                String   @id @default(uuid())
+  residentConsentId String
+  fileName          String
+  fileUrl           String
+  uploadedBy        String?
+  uploadedAt        DateTime @default(now())
+  residentConsent   ResidentConsent @relation(fields: [residentConsentId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([residentConsentId])
+}
+
+model SaleItem {
+  id              String   @id @default(uuid())
+  careHomeId      String
+  careHqResidentId String
+  vendorId        String
+  priceItemId     String?
+  description     String
+  price           Decimal  @db.Decimal(10, 2)
+  date            DateTime
+  invoiced        Boolean  @default(false)
+  invoiceNumber   String?
+  serviceUserId   String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  careHome        CareHome @relation(fields: [careHomeId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  careHqResident   CareHqResident @relation(fields: [careHqResidentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  vendor          Vendor   @relation(fields: [vendorId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  priceItem       PriceItem? @relation(fields: [priceItemId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([careHomeId])
+  @@index([vendorId])
+  @@index([careHqResidentId])
+}
+
+model Newspaper {
+  id               String   @id @default(uuid())
+  title            String
+  price            Decimal  @db.Decimal(10, 2)
+  weekdayOrWeekend String?  @db.VarChar(16)
+  sort             Int      @default(0)
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  orders           NewspaperOrder[]
+
+  @@unique([title])
+}
+
+model NewspaperOrder {
+  id              String   @id @default(uuid())
+  careHomeId      String
+  careHqResidentId String
+  newspaperId     String
+  itemTitle       String
+  price           Decimal  @db.Decimal(10, 2)
+  monday          Boolean  @default(false)
+  tuesday         Boolean  @default(false)
+  wednesday       Boolean  @default(false)
+  thursday        Boolean  @default(false)
+  friday          Boolean  @default(false)
+  saturday        Boolean  @default(false)
+  sunday          Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  careHome        CareHome @relation(fields: [careHomeId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  careHqResident   CareHqResident @relation(fields: [careHqResidentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  newspaper       Newspaper @relation(fields: [newspaperId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([careHqResidentId, newspaperId])
+  @@index([careHomeId])
 }
 
 model Consent {

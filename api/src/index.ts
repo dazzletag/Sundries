@@ -4,6 +4,7 @@ import sensible from "@fastify/sensible";
 import dotenv from "dotenv";
 import prismaPlugin from "./plugins/prisma";
 import authPlugin from "./plugins/auth";
+import authorizationPlugin from "./plugins/authorization";
 import registerRoutes from "./routes";
 
 dotenv.config();
@@ -18,6 +19,7 @@ server.register(cors, { origin: true });
 server.register(sensible);
 server.register(prismaPlugin);
 server.register(authPlugin);
+server.register(authorizationPlugin);
 server.register(registerRoutes);
 
 export const start = async () => {

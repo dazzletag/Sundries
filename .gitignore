@@ -3,3 +3,4 @@ artifacts/
 *.log
 .env
 
+carehqresident.py

@@ -6,6 +6,12 @@ import VisitsPage from "./pages/Visits";
 import ProvidersPage from "./pages/Providers";
 import InvoicesPage from "./pages/Invoices";
 import SuppliersPage from "./pages/Suppliers";
+import ConsentsPage from "./pages/Consents";
+import AdminPage from "./pages/Admin";
+import VendorsPage from "./pages/Vendors";
+import PricesPage from "./pages/Prices";
+import SalesPage from "./pages/Sales";
+import NewspapersPage from "./pages/Newspapers";
 import { SnackbarProvider } from "notistack";
 
 function App() {
@@ -17,6 +23,12 @@ function App() {
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/residents" element={<ResidentsPage />} />
+            <Route path="/consents" element={<ConsentsPage />} />
+            <Route path="/vendors" element={<VendorsPage />} />
+            <Route path="/prices" element={<PricesPage />} />
+            <Route path="/sales" element={<SalesPage />} />
+            <Route path="/newspapers" element={<NewspapersPage />} />
+            <Route path="/admin" element={<AdminPage />} />
             <Route path="/visits" element={<VisitsPage />} />
             <Route path="/providers" element={<ProvidersPage />} />
             <Route path="/invoices" element={<InvoicesPage />} />
