@@ -166,3 +166,93 @@ Any agent operating on this repository is expected to:
 - read this file before acting
 - explicitly state when it cannot comply
 - default to safety and explicitness when uncertain
+
+---
+
+## Sundries CI/CD + CareHQ Route That Worked (2026-01-30)
+
+This section documents the working deployment path and required settings so we can repeat it without rediscovering steps.
+
+### Canonical CI build order (API)
+- In `.github/workflows/deploy.yml` deploy_api job:
+  - `shell: bash`, `working-directory: api`
+  - Order is **mandatory**:
+    1) `npm ci`
+    2) `npx prisma generate`
+    3) `npm run build`
+  - Package with Unix zip:
+    - `zip -r api.zip dist prisma node_modules package.json package-lock.json`
+  - Validate ZIP path separators:
+    - `unzip -l artifacts/api.zip | grep '\\' && exit 1 || echo "ZIP paths OK"`
+  - Validate runtime deps present:
+    - `unzip -l artifacts/api.zip | grep -q 'node_modules/fastify/package.json$' || exit 1`
+
+### Deploy workflow guardrails
+- Infra deployment is now skipped on push to avoid overwriting app settings:
+  - `Deploy infrastructure`, `Extract key vault name`, `Grant pipeline ...`, `Run Prisma migrations` run **only** on `workflow_dispatch`.
+  - `Save deployment outputs` falls back to `https://sundries-api-prod.azurewebsites.net` if outputs file is missing.
+- Frontend build envs:
+  - `VITE_API_BASE_URL`, `VITE_AAD_CLIENT_ID`, `VITE_AAD_TENANT_ID`, `VITE_API_AUDIENCE`, `VITE_API_SCOPES` passed in workflow.
+
+### Prisma + migrations
+- `schema.prisma` generator must include:
+  - `binaryTargets = ["native", "debian-openssl-1.1.x", "debian-openssl-3.0.x"]`
+- Migration lock provider must be `mssql`.
+- CareHQ residents model stored without FK (to avoid missing CareHome table at migration time):
+  - `CareHqResident` has `careHomeName` and no relation.
+
+### App Service settings that are critical
+- `TENANT_ID` = `44a1be07-ba53-4b40-8c4b-8a48ce5f1b0e`
+- `API_AUDIENCE` = `api://44a1be07-ba53-4b40-8c4b-8a48ce5f1b0e/sundries-api`
+- `DATABASE_URL` must be **sqlserver://** format (Key Vault reference was not resolving reliably):
+  - Example: `sqlserver://sundriessqlv6bo7ekyb6loq.database.windows.net:1433;database=sundriesdb;user=sundriesadmin;password=...;encrypt=true;trustServerCertificate=false;`
+- CareHQ secrets:
+  - `CAREHQ_ACCOUNT_ID`, `CAREHQ_API_KEY`, `CAREHQ_API_SECRET`
+
+### Key Vault and App Service identity
+- Key Vault name used: `sundrieskvq3eyetqzg6j`
+- KV secret names with hyphens (no underscores):
+  - `CAREHQ-ACCOUNT-ID`, `CAREHQ-API-KEY`, `CAREHQ-API-SECRET`
+- App Service managed identity must have KV `get/list` (access policy).
+
+### SQL connectivity
+- SQL server: `sundriessqlv6bo7ekyb6loq`
+- Public network access: **Enabled**
+- Firewall rules:
+  - `AllowAzureServices` (0.0.0.0/0) enabled to allow App Service.
+- Connection policy set to **Proxy**:
+  - `az sql server conn-policy update ... --connection-type Proxy`
+
+### Auth/JWT fixes applied
+- JWKS URL uses:
+  - `https://login.microsoftonline.com/{tenantId}/discovery/v2.0/keys`
+- Accept both issuer formats:
+  - `https://login.microsoftonline.com/{tenantId}/v2.0`
+  - `https://sts.windows.net/{tenantId}/`
+- jose `JWT.verify` return shape handled (payload may be returned directly).
+
+### MSAL (frontend)
+- Added `handleRedirectPromise` after `initialize`.
+- Prevent duplicate redirects.
+- Derive API scopes from audience; prefer `VITE_API_SCOPES`.
+- Ensure SPA build receives:
+  - `VITE_API_SCOPES = api://44a1be07-ba53-4b40-8c4b-8a48ce5f1b0e/sundries-api/access_as_user`
+
+### Static Web Apps routing
+- Added `web/staticwebapp.config.json` with SPA rewrite for `/dashboard` and other routes.
+
+### CareHQ sync
+- Endpoint: `POST /carehq/residents/sync`
+- Cache endpoint: `GET /carehq/residents`
+- Sync returns `{ synced, total, lastSyncedAt }`
+- Paging: treat 404 on page>1 as end of results.
+- CareHQ client dynamic import with fallback to `/dist/index.js` to avoid ESM export errors.
+
+### UI updates
+- Residents page now has:
+  - **Sync now** button
+  - Care Home filter dropdown
+
+### Notes
+- If API deploy returns 502 but `/health` is OK, the pipeline continues; check Kudu deployment logs for actual status.
+- If API fails to start with `DATABASE_URL` errors, reset `DATABASE_URL` directly in App Service and restart.
