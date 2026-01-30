@@ -66,8 +66,11 @@ const Layout = ({ children }: LayoutProps) => {
   };
 
   return (
-    <Box sx={{ display: "flex" }}>
-      <AppBar position="fixed" sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}>
+    <Box sx={{ display: "flex", "@media print": { display: "block" } }}>
+      <AppBar
+        position="fixed"
+        sx={{ zIndex: (theme) => theme.zIndex.drawer + 1, "@media print": { display: "none" } }}
+      >
         <Toolbar>
           <Typography variant="h6" noWrap component="div">
             Sundries Portal
@@ -89,7 +92,8 @@ const Layout = ({ children }: LayoutProps) => {
         variant="permanent"
         sx={{
           width: drawerWidth,
-          [`& .MuiDrawer-paper`]: { width: drawerWidth, boxSizing: "border-box" }
+          [`& .MuiDrawer-paper`]: { width: drawerWidth, boxSizing: "border-box" },
+          "@media print": { display: "none" }
         }}
       >
         <Toolbar sx={{ minHeight: 64 }}>
@@ -108,8 +112,11 @@ const Layout = ({ children }: LayoutProps) => {
         </List>
       </Drawer>
 
-      <Box component="main" sx={{ flexGrow: 1, p: 3, ml: `${drawerWidth}px` }}>
-        <Toolbar />
+      <Box
+        component="main"
+        sx={{ flexGrow: 1, p: 3, ml: `${drawerWidth}px`, "@media print": { ml: 0, p: 0 } }}
+      >
+        <Toolbar sx={{ "@media print": { display: "none" } }} />
         {children}
       </Box>
     </Box>
