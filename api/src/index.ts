@@ -15,7 +15,10 @@ const server = Fastify({
   }
 });
 
-server.register(cors, { origin: true });
+server.register(cors, {
+  origin: true,
+  methods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"]
+});
 server.register(sensible);
 server.register(prismaPlugin);
 server.register(authPlugin);
