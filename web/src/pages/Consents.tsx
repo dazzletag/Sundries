@@ -100,7 +100,12 @@ const ConsentsPage = () => {
       try {
         const response = await api.get("/resident-consents", { params: { careHomeId: selectedHomeId } });
         if (active) {
-          setConsents(response.data ?? []);
+          const next = response.data ?? [];
+          setConsents(next);
+          const activeCount = next.filter((item: ResidentConsent) => item.currentResident).length;
+          if (activeCount === 0 && next.length > 0) {
+            setShowInactive(true);
+          }
         }
       } catch {
         enqueueSnackbar("Failed to load resident consents", { variant: "error" });
