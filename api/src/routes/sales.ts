@@ -24,7 +24,19 @@ const invoiceSchema = z.object({
   vendorId: z.string().uuid(),
   from: z.string().optional(),
   to: z.string().optional(),
-  toEmail: z.string().email()
+  toEmail: z.string().email().optional()
+});
+
+const bulkSchema = z.object({
+  careHomeId: z.string().uuid(),
+  vendorId: z.string().uuid(),
+  date: z.string(),
+  items: z.array(
+    z.object({
+      careHqResidentId: z.string().uuid(),
+      priceItemId: z.string().uuid()
+    })
+  )
 });
 
 export default async function salesRoutes(fastify: FastifyInstance) {
@@ -58,6 +70,39 @@ export default async function salesRoutes(fastify: FastifyInstance) {
         date: new Date(payload.date)
       }
     });
+  });
+
+  fastify.post("/sales/bulk", { preHandler: fastify.authenticate }, async (request) => {
+    const payload = bulkSchema.parse(request.body);
+    await fastify.requireHomeAccess(request, payload.careHomeId);
+
+    const date = new Date(payload.date);
+    const priceItems = await fastify.prisma.priceItem.findMany({
+      where: { id: { in: payload.items.map((item) => item.priceItemId) } }
+    });
+    const priceItemMap = new Map(priceItems.map((item) => [item.id, item]));
+
+    const created = await fastify.prisma.$transaction(
+      payload.items.map((item) => {
+        const priceItem = priceItemMap.get(item.priceItemId);
+        if (!priceItem) {
+          throw fastify.httpErrors.badRequest("Price item not found");
+        }
+        return fastify.prisma.saleItem.create({
+          data: {
+            careHomeId: payload.careHomeId,
+            careHqResidentId: item.careHqResidentId,
+            vendorId: payload.vendorId,
+            priceItemId: priceItem.id,
+            description: priceItem.description,
+            price: Number(priceItem.price),
+            date
+          }
+        });
+      })
+    );
+
+    return { created: created.length };
   });
 
   fastify.delete("/sales/:id", { preHandler: fastify.authenticate }, async (request) => {
@@ -111,6 +156,7 @@ export default async function salesRoutes(fastify: FastifyInstance) {
     const pdf = await createSalesInvoicePdf({
       vendorName: vendor.name,
       vendorAccountRef: vendor.accountRef,
+      vendorAddressLines: [vendor.address1, vendor.address2, vendor.address3, vendor.address4, vendor.address5],
       careHomeName: careHome.name,
       invoiceNo,
       issuedAt,
@@ -121,13 +167,15 @@ export default async function salesRoutes(fastify: FastifyInstance) {
       }))
     });
 
-    await sendGraphMailWithAttachment({
-      to: payload.toEmail,
-      subject: `Invoice ${invoiceNo}`,
-      html: `<p>Invoice ${invoiceNo} attached.</p>`,
-      attachmentName: `${invoiceNo}.pdf`,
-      attachmentContent: pdf
-    });
+    if (payload.toEmail) {
+      await sendGraphMailWithAttachment({
+        to: payload.toEmail,
+        subject: `Invoice ${invoiceNo}`,
+        html: `<p>Invoice ${invoiceNo} attached.</p>`,
+        attachmentName: `${invoiceNo}.pdf`,
+        attachmentContent: pdf
+      });
+    }
 
     await fastify.prisma.saleItem.updateMany({
       where: { id: { in: items.map((item) => item.id) } },
@@ -135,5 +183,62 @@ export default async function salesRoutes(fastify: FastifyInstance) {
     });
 
     return { invoiceNo, itemCount: items.length };
+  });
+
+  fastify.post("/sales/invoice/preview", { preHandler: fastify.authenticate }, async (request, reply) => {
+    const payload = invoiceSchema.parse(request.body);
+    await fastify.requireHomeAccess(request, payload.careHomeId);
+
+    const periodStart = payload.from ? new Date(payload.from) : undefined;
+    const periodEnd = payload.to ? new Date(payload.to) : undefined;
+
+    const [careHome, vendor, items] = await Promise.all([
+      fastify.prisma.careHome.findUnique({ where: { id: payload.careHomeId } }),
+      fastify.prisma.vendor.findUnique({ where: { id: payload.vendorId } }),
+      fastify.prisma.saleItem.findMany({
+        where: {
+          careHomeId: payload.careHomeId,
+          vendorId: payload.vendorId,
+          ...(periodStart || periodEnd
+            ? {
+                date: {
+                  ...(periodStart ? { gte: periodStart } : {}),
+                  ...(periodEnd ? { lte: periodEnd } : {})
+                }
+              }
+            : {})
+        },
+        include: { careHqResident: true }
+      })
+    ]);
+
+    if (!careHome || !vendor) {
+      throw fastify.httpErrors.notFound("Care home or vendor not found");
+    }
+    if (!items.length) {
+      throw fastify.httpErrors.badRequest("No items available");
+    }
+
+    const issuedAt = new Date();
+    const invoiceNo = `${vendor.accountRef}-${issuedAt.toISOString().slice(0, 10).replace(/-/g, "")}`;
+
+    const pdf = await createSalesInvoicePdf({
+      vendorName: vendor.name,
+      vendorAccountRef: vendor.accountRef,
+      vendorAddressLines: [vendor.address1, vendor.address2, vendor.address3, vendor.address4, vendor.address5],
+      careHomeName: careHome.name,
+      invoiceNo,
+      issuedAt,
+      items: items
+        .sort((a, b) => (a.careHqResident.roomNumber ?? "").localeCompare(b.careHqResident.roomNumber ?? ""))
+        .map((item) => ({
+          residentName: item.careHqResident.fullName ?? item.careHqResident.roomNumber ?? "Resident",
+          description: item.description,
+          price: Number(item.price)
+        }))
+    });
+
+    reply.header("Content-Type", "application/pdf");
+    return reply.send(pdf);
   });
 }

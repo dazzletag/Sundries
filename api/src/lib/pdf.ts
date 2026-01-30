@@ -66,6 +66,7 @@ export const createInvoicePdf = async (params: {
 export const createSalesInvoicePdf = async (params: {
   vendorName: string;
   vendorAccountRef: string;
+  vendorAddressLines?: Array<string | null | undefined>;
   careHomeName: string;
   invoiceNo: string;
   issuedAt: Date;
@@ -75,14 +76,19 @@ export const createSalesInvoicePdf = async (params: {
     price: number;
   }>;
 }) => {
-  const { vendorName, vendorAccountRef, careHomeName, invoiceNo, issuedAt, items } = params;
+  const { vendorName, vendorAccountRef, vendorAddressLines, careHomeName, invoiceNo, issuedAt, items } = params;
   const doc = new PDFDocument({ size: "A4", margin: 40 });
   doc.font("Helvetica");
 
   doc.fontSize(18).text("Sundries Services Ltd", { align: "left" });
   doc.moveDown(0.5);
   doc.fontSize(12).text(`Invoice No: ${invoiceNo}`);
-  doc.text(`Vendor: ${vendorName} (${vendorAccountRef})`);
+  doc.text(`Supplier: ${vendorName} (${vendorAccountRef})`);
+  if (vendorAddressLines && vendorAddressLines.filter(Boolean).length > 0) {
+    vendorAddressLines.filter(Boolean).forEach((line) => {
+      doc.text(String(line));
+    });
+  }
   doc.text(`Care Home: ${careHomeName}`);
   doc.text(`Issued: ${issuedAt.toISOString().slice(0, 10)}`);
   doc.moveDown(1);
@@ -113,6 +119,8 @@ export const createSalesInvoicePdf = async (params: {
 
   doc.moveDown(1);
   doc.fontSize(12).text(`Total: £${total.toFixed(2)}`);
+  doc.moveDown(1);
+  doc.fontSize(10).text("Supplier signature: _____________________________");
 
   doc.end();
 

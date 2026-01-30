@@ -1,6 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Box, Button, Divider, Table, TableBody, TableCell, TableHead, TableRow, Typography } from "@mui/material";
+import {
+  Box,
+  Button,
+  Checkbox,
+  Divider,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableRow,
+  Typography
+} from "@mui/material";
 import { useSnackbar } from "notistack";
 import { useApi } from "../hooks/useApi";
 import logo from "../assets/bch-logo.svg";
@@ -19,6 +30,8 @@ const VisitsPrintPage = () => {
   const { enqueueSnackbar } = useSnackbar();
   const [searchParams] = useSearchParams();
   const [data, setData] = useState<PrintPayload | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [selected, setSelected] = useState<Record<string, Set<string>>>({});
 
   const careHomeId = searchParams.get("careHomeId") ?? "";
   const vendorId = searchParams.get("vendorId") ?? "";
@@ -41,11 +54,78 @@ const VisitsPrintPage = () => {
       });
   }, [api, careHomeId, vendorId, date, enqueueSnackbar]);
 
+  const toggleSelection = (residentId: string, priceItemId: string) => {
+    setSelected((prev) => {
+      const existing = new Set(prev[residentId] ?? []);
+      if (existing.has(priceItemId)) {
+        existing.delete(priceItemId);
+      } else {
+        existing.add(priceItemId);
+      }
+      return { ...prev, [residentId]: existing };
+    });
+  };
+
+  const handleSave = async () => {
+    if (!data) return;
+    const items = Object.entries(selected).flatMap(([residentId, priceIds]) =>
+      Array.from(priceIds).map((priceItemId) => ({
+        careHqResidentId: residentId,
+        priceItemId
+      }))
+    );
+    if (!items.length) {
+      enqueueSnackbar("Select at least one service", { variant: "warning" });
+      return;
+    }
+    setSaving(true);
+    try {
+      await api.post("/sales/bulk", {
+        careHomeId: data.careHome.id,
+        vendorId: data.vendor.id,
+        date: data.visitedAt,
+        items
+      });
+      enqueueSnackbar("Visit items saved", { variant: "success" });
+    } catch {
+      enqueueSnackbar("Failed to save visit items", { variant: "error" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleInvoice = async () => {
+    if (!data) return;
+    try {
+      const response = await api.post(
+        "/sales/invoice/preview",
+        {
+          careHomeId: data.careHome.id,
+          vendorId: data.vendor.id,
+          from: data.visitedAt.slice(0, 10),
+          to: data.visitedAt.slice(0, 10)
+        },
+        { responseType: "blob" }
+      );
+      const blob = new Blob([response.data], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
+      window.open(url, "_blank", "noopener,noreferrer");
+    } catch {
+      enqueueSnackbar("Failed to generate invoice", { variant: "error" });
+    }
+  };
+
   return (
     <article>
-      <Box display="flex" justifyContent="flex-end" mb={2} sx={{ "@media print": { display: "none" } }}>
+      <Box display="flex" justifyContent="flex-end" gap={2} mb={2} sx={{ "@media print": { display: "none" } }}>
+        <Button variant="outlined" onClick={handleSave} disabled={saving}>
+          {saving ? "Saving..." : "Save visit items"}
+        </Button>
+        <Button variant="contained" onClick={handleInvoice}>
+          Generate invoice
+        </Button>
         <Button variant="contained" onClick={() => window.print()}>
-          Print
+          Print list
         </Button>
       </Box>
 
@@ -98,9 +178,16 @@ const VisitsPrintPage = () => {
                     <TableCell>
                       <Box display="flex" flexWrap="wrap" gap={2}>
                         {data.priceItems.map((item) => (
-                          <Typography key={item.id} variant="body2" sx={{ whiteSpace: "nowrap" }}>
-                            □ {item.description} (£{Number(item.price).toFixed(2)})
-                          </Typography>
+                          <Box key={item.id} display="flex" alignItems="center" sx={{ whiteSpace: "nowrap" }}>
+                            <Checkbox
+                              size="small"
+                              checked={selected[resident.id]?.has(item.id) ?? false}
+                              onChange={() => toggleSelection(resident.id, item.id)}
+                            />
+                            <Typography variant="body2">
+                              {item.description} (£{Number(item.price).toFixed(2)})
+                            </Typography>
+                          </Box>
                         ))}
                       </Box>
                     </TableCell>
