@@ -64,7 +64,9 @@ export default async function residentConsentRoutes(fastify: FastifyInstance) {
     );
     const activeIds = new Set(activeResidents.map((resident) => resident.id));
 
-    const upserts = activeResidents.map(async (resident) => {
+    const upserts = [] as ReturnType<typeof fastify.prisma.residentConsent.update>[];
+
+    for (const resident of activeResidents) {
       const existing =
         (await fastify.prisma.residentConsent.findFirst({
           where: { careHqResidentId: resident.id }
@@ -79,31 +81,35 @@ export default async function residentConsentRoutes(fastify: FastifyInstance) {
           : null);
 
       if (existing) {
-        return fastify.prisma.residentConsent.update({
-          where: { id: existing.id },
-          data: {
-            careHqResidentId: resident.id,
-            roomNumber: resident.roomNumber,
-            fullName: resident.fullName,
-            accountCode: resident.accountCode,
-            serviceUserId: resident.serviceUserId,
-            currentResident: true
-          }
-        });
+        upserts.push(
+          fastify.prisma.residentConsent.update({
+            where: { id: existing.id },
+            data: {
+              careHqResidentId: resident.id,
+              roomNumber: resident.roomNumber,
+              fullName: resident.fullName,
+              accountCode: resident.accountCode,
+              serviceUserId: resident.serviceUserId,
+              currentResident: true
+            }
+          })
+        );
+      } else {
+        upserts.push(
+          fastify.prisma.residentConsent.create({
+            data: {
+              careHomeId: payload.careHomeId,
+              careHqResidentId: resident.id,
+              roomNumber: resident.roomNumber,
+              fullName: resident.fullName,
+              accountCode: resident.accountCode,
+              serviceUserId: resident.serviceUserId,
+              currentResident: true
+            }
+          })
+        );
       }
-
-      return fastify.prisma.residentConsent.create({
-        data: {
-          careHomeId: payload.careHomeId,
-          careHqResidentId: resident.id,
-          roomNumber: resident.roomNumber,
-          fullName: resident.fullName,
-          accountCode: resident.accountCode,
-          serviceUserId: resident.serviceUserId,
-          currentResident: true
-        }
-      });
-    });
+    }
 
     const deactivate = fastify.prisma.residentConsent.updateMany({
       where: {
@@ -114,7 +120,7 @@ export default async function residentConsentRoutes(fastify: FastifyInstance) {
       data: { currentResident: false }
     });
 
-    await fastify.prisma.$transaction([...(await Promise.all(upserts)), deactivate]);
+    await fastify.prisma.$transaction([...upserts, deactivate]);
 
     return {
       careHomeId: payload.careHomeId,
