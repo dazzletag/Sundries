@@ -13,6 +13,7 @@ import vendorRoutes from "./vendors";
 import priceItemRoutes from "./priceItems";
 import salesRoutes from "./sales";
 import newspaperRoutes from "./newspapers";
+import miscExpenseRoutes from "./miscExpenses";
 
 export default async function registerRoutes(fastify: FastifyInstance) {
   const healthResponse = () => ({
@@ -66,4 +67,5 @@ export default async function registerRoutes(fastify: FastifyInstance) {
   fastify.register(priceItemRoutes);
   fastify.register(salesRoutes);
   fastify.register(newspaperRoutes);
+  fastify.register(miscExpenseRoutes);
 }

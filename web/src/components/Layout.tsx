@@ -16,32 +16,25 @@ import {
   Toolbar,
   Typography
 } from "@mui/material";
-import DashboardIcon from "@mui/icons-material/Dashboard";
 import PeopleIcon from "@mui/icons-material/People";
 import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import ReceiptIcon from "@mui/icons-material/Receipt";
-import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
 import StorefrontIcon from "@mui/icons-material/Storefront";
 import FactCheckIcon from "@mui/icons-material/FactCheck";
 import SettingsIcon from "@mui/icons-material/Settings";
 import LocalOfferIcon from "@mui/icons-material/LocalOffer";
 import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
-import NewspaperIcon from "@mui/icons-material/Newspaper";
 
 const drawerWidth = 280;
 
 const navItems = [
-  { label: "Dashboard", path: "/dashboard", icon: <DashboardIcon /> },
   { label: "Residents", path: "/residents", icon: <PeopleIcon /> },
   { label: "Consents", path: "/consents", icon: <FactCheckIcon /> },
   { label: "Vendors", path: "/vendors", icon: <StorefrontIcon /> },
   { label: "Prices", path: "/prices", icon: <LocalOfferIcon /> },
-  { label: "Sales", path: "/sales", icon: <ShoppingCartIcon /> },
-  { label: "Newspapers", path: "/newspapers", icon: <NewspaperIcon /> },
+  { label: "Misc Expenses", path: "/misc-expenses", icon: <ShoppingCartIcon /> },
   { label: "Visits", path: "/visits", icon: <CalendarMonthIcon /> },
-  { label: "Providers", path: "/providers", icon: <StorefrontIcon /> },
   { label: "Invoices", path: "/invoices", icon: <ReceiptIcon /> },
-  { label: "Suppliers", path: "/suppliers", icon: <AccountBalanceIcon /> },
   { label: "Admin", path: "/admin", icon: <SettingsIcon /> }
 ];
 
