@@ -1,9 +1,11 @@
 import { FastifyInstance } from "fastify";
 import { z } from "zod";
 
+const nonEmptyString = z.string().trim().min(1);
+
 const assignmentSchema = z.object({
-  careHomeId: z.string().uuid(),
-  role: z.string().min(1)
+  careHomeId: nonEmptyString,
+  role: nonEmptyString
 });
 
 const updateAssignmentsSchema = z.object({
@@ -11,10 +13,10 @@ const updateAssignmentsSchema = z.object({
 });
 
 const createUserSchema = z.object({
-  oid: z.string().min(1),
+  oid: nonEmptyString,
   upn: z.string().email().optional().nullable(),
-  role: z.string().min(1).default("User"),
-  homeIds: z.array(z.string().uuid()).default([])
+  role: nonEmptyString.default("User"),
+  homeIds: z.array(nonEmptyString).default([])
 });
 
 export default async function adminRoutes(fastify: FastifyInstance) {
@@ -34,6 +36,15 @@ export default async function adminRoutes(fastify: FastifyInstance) {
 
   fastify.post("/users", adminGuard, async (request) => {
     const payload = createUserSchema.parse(request.body);
+    const uniqueHomeIds = [...new Set(payload.homeIds)];
+    if (uniqueHomeIds.length) {
+      const homeCount = await fastify.prisma.careHome.count({
+        where: { id: { in: uniqueHomeIds } }
+      });
+      if (homeCount !== uniqueHomeIds.length) {
+        throw fastify.httpErrors.badRequest("One or more care homes are invalid");
+      }
+    }
 
     const user = await fastify.prisma.appUser.upsert({
       where: { oid: payload.oid },
@@ -49,10 +60,10 @@ export default async function adminRoutes(fastify: FastifyInstance) {
 
     await fastify.prisma.$transaction([
       fastify.prisma.userHomeRole.deleteMany({ where: { userId: user.id } }),
-      ...(payload.homeIds.length
+      ...(uniqueHomeIds.length
         ? [
             fastify.prisma.userHomeRole.createMany({
-              data: payload.homeIds.map((careHomeId) => ({
+              data: uniqueHomeIds.map((careHomeId) => ({
                 userId: user.id,
                 careHomeId,
                 role: payload.role
@@ -88,10 +99,31 @@ export default async function adminRoutes(fastify: FastifyInstance) {
       role: assignment.role
     }));
 
+    const assignmentMap = new Map<string, string>();
+    assignments.forEach((assignment) => {
+      assignmentMap.set(assignment.careHomeId, assignment.role);
+    });
+
+    const uniqueAssignmentHomeIds = Array.from(assignmentMap.keys());
+    if (uniqueAssignmentHomeIds.length) {
+      const homeCount = await fastify.prisma.careHome.count({
+        where: { id: { in: uniqueAssignmentHomeIds } }
+      });
+      if (homeCount !== uniqueAssignmentHomeIds.length) {
+        throw fastify.httpErrors.badRequest("One or more care homes are invalid");
+      }
+    }
+
+    const uniqueAssignments = Array.from(assignmentMap.entries()).map(([careHomeId, role]) => ({
+      userId: id,
+      careHomeId,
+      role
+    }));
+
     await fastify.prisma.$transaction([
       fastify.prisma.userHomeRole.deleteMany({ where: { userId: id } }),
-      ...(assignments.length
-        ? [fastify.prisma.userHomeRole.createMany({ data: assignments })]
+      ...(uniqueAssignments.length
+        ? [fastify.prisma.userHomeRole.createMany({ data: uniqueAssignments })]
         : [])
     ]);
 
