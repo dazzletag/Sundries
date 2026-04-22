@@ -1,4 +1,3 @@
-import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
 import { EventType, PublicClientApplication } from "@azure/msal-browser";
@@ -22,6 +21,10 @@ export const msalInstance = new PublicClientApplication({
   },
   cache: {
     cacheLocation: "localStorage"
+  },
+  system: {
+    iframeBridgeTimeout: 10000,
+    popupBridgeTimeout: 60000
   }
 });
 
@@ -51,11 +54,9 @@ const startApp = async () => {
   }
 
   ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
-    <React.StrictMode>
-      <MsalProvider instance={msalInstance}>
-        <App />
-      </MsalProvider>
-    </React.StrictMode>
+    <MsalProvider instance={msalInstance}>
+      <App />
+    </MsalProvider>
   );
 };
 
