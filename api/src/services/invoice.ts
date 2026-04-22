@@ -1,4 +1,4 @@
-import { PrismaClient } from "@prisma/client";
+import type { prisma as PrismaInstance } from "../lib/prisma";
 
 const slugifySupplier = (name: string) => {
   const cleaned = name
@@ -9,7 +9,7 @@ const slugifySupplier = (name: string) => {
 };
 
 export const generateInvoiceNumber = async (
-  prisma: PrismaClient,
+  prisma: typeof PrismaInstance,
   supplierId: string,
   periodStart: Date
 ) => {

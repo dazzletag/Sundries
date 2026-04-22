@@ -1,9 +1,10 @@
 ﻿import type { FastifyReply, FastifyRequest } from "fastify";
-import type { AppUser, CareHome, PrismaClient, UserHomeRole } from "@prisma/client";
+import type { AppUser, CareHome, UserHomeRole } from "@prisma/client";
+import type { prisma as PrismaInstance } from "../lib/prisma";
 
 declare module "fastify" {
   interface FastifyInstance {
-    prisma: PrismaClient;
+    prisma: typeof PrismaInstance;
     authenticate: (request: FastifyRequest, reply: FastifyReply) => Promise<void>;
     ensureUser: (request: FastifyRequest) => Promise<AppUser>;
     getUserContext: (request: FastifyRequest) => Promise<{

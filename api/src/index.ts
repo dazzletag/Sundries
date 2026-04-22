@@ -6,6 +6,7 @@ import prismaPlugin from "./plugins/prisma";
 import authPlugin from "./plugins/auth";
 import authorizationPlugin from "./plugins/authorization";
 import registerRoutes from "./routes";
+import { ensurePrismaConnected } from "./lib/prisma";
 
 dotenv.config();
 
@@ -27,6 +28,7 @@ server.register(registerRoutes);
 
 export const start = async () => {
   try {
+    await ensurePrismaConnected(server.log);
     await server.listen({ port: Number(process.env.PORT ?? 4000), host: "0.0.0.0" });
   } catch (error) {
     server.log.error(error);
